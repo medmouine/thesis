@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: Tempsim-mapper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: Tempsimmapper
+  template:
+    metadata:
+      labels:
+        app: Tempsimmapper
+    spec:
+      hostNetwork: true
+      containers:
+      - name: Tempsim-mapper-container
+        image: Tempsimmapper:v1.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: config-volume
+          mountPath: /opt/kubeedge/
+      nodeSelector:
+        Tempsim: "true"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: device-profile-config-test
+      restartPolicy: Always
