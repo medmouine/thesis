@@ -1,0 +1,17 @@
+apiVersion: devices.kubeedge.io/v1alpha2
+kind: DeviceModel
+metadata:
+  name: temperature-sensor
+  namespace: default
+spec:
+  properties:
+    - name: minTemperature
+      type:
+        int:
+          accessMode: ReadWrite
+          defaultValue: 0
+    - name: maxTemperature
+      type:
+        int:
+          accessMode: ReadWrite
+          defaultValue: 100

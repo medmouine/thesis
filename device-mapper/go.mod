@@ -3,11 +3,12 @@ module medthesis/device-mapper
 go 1.17
 
 require (
-	github.com/eclipse/paho.mqtt.golang v1.3.0
 	github.com/kubeedge/mappers-go v1.13.0
+	medthesis/temperature_sensor v0.0.0
 )
 
 require (
+	github.com/eclipse/paho.mqtt.golang v1.3.0 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
@@ -18,3 +19,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 )
+
+replace medthesis/temperature_sensor => ../temperature-sensor

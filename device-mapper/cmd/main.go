@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/kubeedge/mappers-go/mapper-sdk-go/pkg/service"
-	"medthesis/device-mapper/driver"
+	"medthesis/temperature_sensor"
 )
 
-// main Tempsim device program entry
+// main TemperatureSensorDriver device program entry
 func main() {
-	d := &driver.Tempsim{}
-	service.Bootstrap("Tempsim", d)
+	d := temperature_sensor.NewTemperatureSimulator("temperature-sensor-1", 0, 100)
+	service.Bootstrap("Simulator", d)
 }
