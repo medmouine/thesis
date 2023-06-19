@@ -1,4 +1,4 @@
-module medthesis/temperature-sensor
+module github.com/medmouine/temperature-sensor
 
 go 1.20
 

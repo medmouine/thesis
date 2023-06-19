@@ -1,4 +1,4 @@
-package temperature_sensor
+package temperaturesensor
 
 type Sensor interface {
 	Read() float64
@@ -6,7 +6,7 @@ type Sensor interface {
 
 type temperatureSensor struct {
 	Sensor
-	Id          string
+	ID          string
 	MinTemp     float64
 	MaxTemp     float64
 	Temperature float64
@@ -14,7 +14,7 @@ type temperatureSensor struct {
 
 func newTemperatureSensor(id string, minTemp, maxTemp, initialTemperature float64) *temperatureSensor {
 	return &temperatureSensor{
-		Id:          id,
+		ID:          id,
 		MinTemp:     minTemp,
 		MaxTemp:     maxTemp,
 		Temperature: initialTemperature,

@@ -1,4 +1,4 @@
-package temperature_sensor
+package temperaturesensor
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestNewTemperatureSensor(t *testing.T) {
 	sensor := newTemperatureSensor("id", -10, 50, 20)
 
-	assert.Equal(t, "id", sensor.Id)
+	assert.Equal(t, "id", sensor.ID)
 	assert.Equal(t, -10.0, sensor.MinTemp)
 	assert.Equal(t, 50.0, sensor.MaxTemp)
 	assert.Equal(t, 20.0, sensor.Temperature)

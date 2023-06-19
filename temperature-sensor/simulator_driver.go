@@ -1,4 +1,4 @@
-package temperature_sensor
+package temperaturesensor
 
 import (
 	"fmt"

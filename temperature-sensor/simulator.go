@@ -1,4 +1,4 @@
-package temperature_sensor
+package temperaturesensor
 
 import (
 	"math/rand"
@@ -17,7 +17,7 @@ type TemperatureSimulator struct {
 }
 
 func NewTemperatureSimulator(id string, minTemp, maxTemp float64) *TemperatureSimulator {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 	initialTemp := minTemp + r.Float64()*(maxTemp-minTemp)
 	simulator := &TemperatureSimulator{
 		temperatureSensor: newTemperatureSensor(id, minTemp, maxTemp, initialTemp),
@@ -34,11 +34,12 @@ func (ts *TemperatureSimulator) Read() float64 {
 	}
 
 	change := (ts.r.Float64() - 0.5) * 3.0
-	if ts.Anomaly == Spike {
+	switch {
+	case ts.Anomaly == Spike:
 		change *= 10.0
-	} else if ts.Anomaly == Drift {
+	case ts.Anomaly == Drift:
 		change += 0.1
-	} else if ts.Anomaly == Noise {
+	case ts.Anomaly == Noise:
 		change *= 2.0
 	}
 

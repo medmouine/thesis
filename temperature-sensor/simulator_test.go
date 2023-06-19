@@ -1,4 +1,4 @@
-package temperature_sensor
+package temperaturesensor
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ func TestNewTemperatureSimulator(t *testing.T) {
 
 	// Verify that the simulator has been properly initialized
 	assert.NotNil(t, simulator)
-	assert.Equal(t, "id", simulator.Id)
+	assert.Equal(t, "id", simulator.ID)
 	assert.Equal(t, None, simulator.Anomaly)
 	assert.LessOrEqual(t, simulator.Temperature, 50.0)
 	assert.GreaterOrEqual(t, simulator.Temperature, -10.0)
