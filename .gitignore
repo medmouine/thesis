@@ -1,3 +1,24 @@
-**/.idea
-mappers-go
-pkg/mod/
+# A default .gitignore for Create Go App project.
+# Author: Vic Shóstak <koddr.me@gmail.com> (https://github.com/koddr)
+# For more information, please visit https://github.com/create-go-app/cli
+
+# macOS
+**/.DS_store
+.idea
+# Go builds
+**/app/
+**/build/
+ke/
+
+# Temporary files
+tmp/
+
+# Node.js dependencies
+**/node_modules/
+
+# Files
+hosts.ini
+*.out
+go.work.sum
+pkg/sumdb
+pkg/mod

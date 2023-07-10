@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  device-mapper:
+    build:
+      context: mapper
+      dockerfile: Dockerfile
+    volumes:
+      - ./device-mapper/res/:kubeedge/res/
