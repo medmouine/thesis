@@ -2,17 +2,22 @@ version: "3.9"
 
 services:
   device-mapper:
+#    image: ko.local/device-mapper-71e749782cfc2a9c9a8ce13a556c6be6:v0.0.1
+    build:
+      dockerfile: Dockerfile
+      context: ../mapper
+    volumes:
+      - ../:/go/src/
     depends_on:
       - emqx1
-      - emqx2
-    build:
-      context: mapper
-      dockerfile: Dockerfile
-    container_name: device-mapper
+    container_name: mapper
+    restart: always
     networks:
       emqx-bridge:
         aliases:
-          - device-mapper1
+          - mapper1
+    env_file:
+      - .env.local
 
   emqx1:
     image: emqx:5.1.0
@@ -20,9 +25,9 @@ services:
     environment:
       - "EMQX_NODE_NAME=emqx@node1.emqx.io"
       - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
-      - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.io,emqx@node2.emqx.io]"
+      - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.io]"
     healthcheck:
-      test: ["CMD", "/opt/emqx/bin/emqx_ctl", "status"]
+      test: [ "CMD", "/opt/emqx/bin/emqx_ctl", "status" ]
       interval: 5s
       timeout: 25s
       retries: 5
@@ -36,23 +41,6 @@ services:
       - "8084:8084"
       - "8883:8883"
       - "18083:18083"
-
-  emqx2:
-    image: emqx:5.1.0
-    container_name: emqx2
-    environment:
-      - "EMQX_NODE_NAME=emqx@node2.emqx.io"
-      - "EMQX_CLUSTER__DISCOVERY_STRATEGY=static"
-      - "EMQX_CLUSTER__STATIC__SEEDS=[emqx@node1.emqx.io,emqx@node2.emqx.io]"
-    healthcheck:
-      test: ["CMD", "/opt/emqx/bin/emqx_ctl", "status"]
-      interval: 5s
-      timeout: 25s
-      retries: 5
-    networks:
-      emqx-bridge:
-        aliases:
-          - node2.emqx.io
 
 networks:
   emqx-bridge:

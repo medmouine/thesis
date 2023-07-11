@@ -1,51 +1,42 @@
 package config
 
 import (
-	"net/url"
-	"os"
+	"fmt"
+	"time"
 
-	"github.com/medmouine/device-mapper/internal/mqtt"
-	"github.com/samber/lo"
+	"github.com/caarlos0/env/v9"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/medmouine/device-mapper/internal/client"
 )
 
 type MqttConfig struct {
-	ClientID    string
-	SubTopics   []string
-	DataTopics  []string
-	StateTopics []string
-	BrokerURL   url.URL
+	ClientID        string        `env:"MQTT_CLIENT_ID"`
+	SubTopics       []string      `env:"MQTT_SUB_TOPICS" envSeparator:":"`
+	StateTopics     []string      `env:"MQTT_STATE_TOPICS" envSeparator:":"`
+	DataTopic       string        `env:"MQTT_DATA_TOPIC"`
+	BrokerURL       string        `env:"MQTT_BROKER_URL"`
+	PublishInterval time.Duration `env:"MQTT_PUBLISH_INTERVAL" envDefault:"5s"`
 }
 
-func NewMqttConfig() *MqttConfig {
-	DataTopics := []string{"data"}
-	StateTopics := []string{"state"}
-	SubTocis := []string{"sub"}
-
-	id := os.Getenv("MQTT_CLIENT_ID")
-	if lo.IsEmpty(id) {
-		panic("wrong client id (check your .env)")
-	}
-	brokerURL, err := url.Parse(os.Getenv("MQTT_BROKER_URL"))
-	if err != nil {
-		panic("wrong broker url (check your .env)")
+func NewMqttConfig() (*MqttConfig, error) {
+	cfg := &MqttConfig{}
+	if err := env.Parse(cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse mqtt config: %w", err)
 	}
 
-	return &MqttConfig{
-		ClientID:    id,
-		SubTopics:   SubTocis,
-		DataTopics:  DataTopics,
-		StateTopics: StateTopics,
-		BrokerURL:   *brokerURL,
-	}
+	return cfg, nil
 }
 
-func (c *MqttConfig) ToClientOptions() *mqtt.ClientOptions {
-	mqttOpts := &mqtt.ClientOptions{
-		SubTopics:   c.SubTopics,
-		DataTopics:  c.DataTopics,
-		StateTopics: c.StateTopics,
+func (c *MqttConfig) ToClientOptions() *client.Options {
+	mqttOpts := &client.Options{
+		MqttOptions:     MQTT.NewClientOptions(),
+		SubTopics:       c.SubTopics,
+		DataTopic:       c.DataTopic,
+		StateTopics:     c.StateTopics,
+		PublishInterval: c.PublishInterval,
 	}
-	mqttOpts.SetClientID(c.ClientID)
-	mqttOpts.AddBroker(c.BrokerURL.Host)
+	mqttOpts.MqttOptions.SetClientID(c.ClientID)
+	mqttOpts.MqttOptions.AddBroker(c.BrokerURL)
+
 	return mqttOpts
 }

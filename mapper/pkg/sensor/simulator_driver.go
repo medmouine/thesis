@@ -13,11 +13,10 @@ func (ts *TemperatureSimulator) ReadDeviceData(_, _, _ []byte) (data interface{}
 }
 
 func (ts *TemperatureSimulator) WriteDeviceData(data interface{}, _, _, _ []byte) (err error) {
-	anomaly, err := FromString(data.(string))
-	if err == nil {
-		ts.IntroduceAnomaly(anomaly)
-	}
-	return err
+	anomaly := ParseAnomaly(data)
+	fmt.Printf("introducing anomaly: %s\n", anomaly)
+	ts.IntroduceAnomaly(anomaly)
+	return nil
 }
 
 func (ts *TemperatureSimulator) StopDevice() (err error) {

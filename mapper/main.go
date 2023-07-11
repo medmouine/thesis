@@ -1,43 +1,41 @@
 package main
 
 import (
-	"log"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/medmouine/device-mapper/cmd"
+	"github.com/medmouine/device-mapper/internal/client"
 	"github.com/medmouine/device-mapper/internal/config"
-	"github.com/medmouine/device-mapper/internal/mqtt"
 	"github.com/medmouine/device-mapper/internal/router"
+	temperaturesensor "github.com/medmouine/device-mapper/pkg/sensor"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	// Create router.
+	cfg := config.NewConfig()
+	driver := temperaturesensor.NewTemperatureSimulator(cfg.Mqtt.ClientID, 0, 100)
+	api := setupAPI(cfg.Server, driver)
+	clt := client.NewClient(cfg.Mqtt.ToClientOptions(), driver)
+
+	mapper := &cmd.Mapper{
+		Config:       cfg,
+		Client:       clt,
+		DeviceDriver: driver,
+		API:          api,
+	}
+
+	// Run instance.
+	if err := mapper.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func setupAPI(config *config.ServerConfig, driver *temperaturesensor.TemperatureSimulator) *chi.Mux {
 	r := chi.NewRouter()
-
-	// Create config.
-	c := config.NewConfig()
-
-	// Set a logger middleware.
 	r.Use(middleware.Logger)
+	r.Use(middleware.Timeout(config.ReadTimeout))
+	router.GetRoutes(r, driver)
 
-	// Set a timeout value on the request context (ctx), that will signal
-	// through ctx.Done() that the request has timed out and further
-	// processing should be stopped.
-	r.Use(middleware.Timeout(c.Server.ReadTimeout))
-
-	// Get router with all routes.
-	router.GetRoutes(r)
-
-	mqttc, err := mqtt.NewClient(c.Mqtt.ToClientOptions())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Run server instance.
-	if err := cmd.Run(c, r, mqttc); err != nil {
-		log.Fatal(err)
-		return
-	}
+	return r
 }

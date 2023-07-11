@@ -2,6 +2,7 @@ package temperaturesensor
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -14,15 +15,17 @@ type TemperatureSimulator struct {
 	*temperatureSensor
 	Anomaly Anomaly
 	r       *rand.Rand
+	mux     sync.Mutex
 }
 
 func NewTemperatureSimulator(id string, minTemp, maxTemp float64) *TemperatureSimulator {
-	r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	initialTemp := minTemp + r.Float64()*(maxTemp-minTemp)
 	simulator := &TemperatureSimulator{
 		temperatureSensor: newTemperatureSensor(id, minTemp, maxTemp, initialTemp),
 		Anomaly:           None,
 		r:                 r,
+		mux:               sync.Mutex{},
 	}
 	simulator.temperatureSensor.Sensor = simulator
 	return simulator
@@ -54,5 +57,7 @@ func (ts *TemperatureSimulator) Read() float64 {
 }
 
 func (ts *TemperatureSimulator) IntroduceAnomaly(anomaly Anomaly) {
+	ts.mux.Lock()
 	ts.Anomaly = anomaly
+	ts.mux.Unlock()
 }

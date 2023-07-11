@@ -1,140 +1,147 @@
-package mqtt
+package client
 
 import (
-	"fmt"
+	"context"
+	"sync"
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hashicorp/go-multierror"
+	"github.com/koddr/gosl"
+	sensor "github.com/medmouine/device-mapper/pkg/sensor"
 	"github.com/samber/lo"
-	"github.com/sourcegraph/conc/pool"
+	log "github.com/sirupsen/logrus"
 	"github.com/sourcegraph/conc/stream"
 )
 
-type ClientStatus string
-
-const (
-	INIT       ClientStatus = "init"
-	CONNECTING ClientStatus = "connecting"
-	CONNECTED  ClientStatus = "connected"
-)
-
-type SubTopic struct {
-	Handler     func(MQTT.Client, MQTT.Message)
-	Topic       string
-	initialised bool
-}
-
 type Client struct {
-	mqttClient  MQTT.Client
-	Subs        []SubTopic
-	DataTopic   string
-	StateTopics []string
-	Status      ClientStatus
-	driver      interface{}
+	mqtt            MQTT.Client
+	Subs            []string
+	DataTopic       string
+	StateTopics     []string
+	Status          Status
+	driver          sensor.Sensor
+	opts            *Options
+	publishInterval time.Duration
+	mux             sync.Mutex
 }
 
-type ClientOptions struct {
-	*MQTT.ClientOptions
-	SubTopics   []string
-	DataTopic   string
-	StateTopics []string
+type Options struct {
+	MqttOptions     *MQTT.ClientOptions
+	SubTopics       []string
+	DataTopic       string
+	StateTopics     []string
+	PublishInterval time.Duration
 }
 
-func NewClient(opts *ClientOptions) (*Client, error) {
-	clt := MQTT.NewClient(opts.ClientOptions)
-	subs := lo.Map(opts.SubTopics, func(topic string, _ int) SubTopic {
-		return SubTopic{
-			Topic:       topic,
-			initialised: false,
-		}
-	})
+func NewClient(opts *Options, driver sensor.Sensor) *Client {
+	clt := MQTT.NewClient(opts.MqttOptions)
 
 	return &Client{
 		clt,
-		subs,
+		opts.SubTopics,
 		opts.DataTopic,
 		opts.StateTopics,
-		INIT,
-		nil,
-	}, nil
+		Init,
+		driver,
+		opts,
+		opts.PublishInterval,
+		sync.Mutex{},
+	}
 }
 
-func (c *Client) Init() error {
-	p := pool.New().WithErrors()
-	p.Go(c.conn)
-	RETRIES := 3
-	for i := 0; i < RETRIES; i++ {
-		if err := p.Wait(); err != nil {
-			fmt.Printf("connection error, retry after 5s: %v\n", err)
-			time.Sleep(5 * time.Second)
-		}
-	}
-	if c.Status != CONNECTED {
-		return fmt.Errorf("connection error")
-	}
-
-	p.Go(c.Subscribe)
-	err := p.Wait()
-	if err != nil {
-		if !lo.NoneBy(c.Subs, func(sub SubTopic) bool { return sub.initialised }) {
-			err = multierror.Prefix(err, "some subs failed to initialise")
-		}
-		return err
-	}
-
-	//pubStream := stream.New()
-	//go func() {
-	//pubStream.Go()
-	//}()
-	return nil
-}
-
-func (c *Client) SetStatus(state ClientStatus) {
+func (c *Client) SetStatus(state Status) {
 	c.Status = state
 }
 
 // func handleError(i interface{}) {}
 
-func (c *Client) conn() error {
-	c.SetStatus(CONNECTING)
-	token := c.mqttClient.Connect()
-	token.Wait()
-	if token.Error() != nil {
-		fmt.Println(token.Error())
+func (c *Client) Connect() error {
+	c.SetStatus(Connecting)
+	if token := c.mqtt.Connect(); token.Wait() && token.Error() != nil {
+		log.Errorf("Error connecting to MQTT broker: %v", token.Error())
+		c.SetStatus(ConnError)
+		return token.Error()
 	}
-	fmt.Println("connect success")
-	c.SetStatus(CONNECTED)
-	return token.Error()
-}
 
-func (c *Client) Publish(topic string) stream.Callback {
-	return func() {
-		var errs error
-		token := c.mqttClient.Publish(topic, 0, false, c.driver)
-		token.Wait()
-		errs = multierror.Append(errs, token.Error())
-		fmt.Printf("publish error: %v", errs)
+	log.Infof("Connected to MQTT brokers [%v]", c.opts.MqttOptions.Servers)
+	c.SetStatus(Connected)
+
+	if err := c.Subscribe(); err != nil {
+		log.Errorf("Error subscribing to topics: %v", err)
+		return err
 	}
+	return nil
 }
 
 func (c *Client) Subscribe() error {
 	var errs error
-	for _, topic := range c.Subs {
-		token := c.mqttClient.Subscribe(topic.Topic, 0, handle)
-		token.Wait()
-		errs = multierror.Append(errs, token.Error())
-		if token.Error() == nil {
-			el, i, _ := lo.FindIndexOf(c.Subs, func(sub SubTopic) bool {
-				return sub.Topic == topic.Topic
-			})
-			if i == -1 {
-				el.initialised = true
-				el.Handler = handle
-			}
+	lo.ForEach(lo.Union(c.Subs, c.StateTopics), func(topic string, i int) {
+		if token := c.mqtt.Subscribe(topic, 0, c.handle()); token.Wait() && token.Error() != nil {
+			errs = multierror.Append(errs, token.Error())
+			return
 		}
-	}
+		log.Infof("Subscribed to topic [%v]", topic)
+	})
 	return errs
 }
 
-func handle(client MQTT.Client, msg MQTT.Message) {}
+func (c *Client) StreamData(ctx context.Context) func() {
+	pubTask := func() stream.Callback {
+		c.mux.Lock()
+		d := c.driver.Read()
+		if token := c.mqtt.Publish(c.DataTopic, 0, false, d); token.Wait() && token.Error() != nil {
+			log.Errorf("Error publishing data: %v", token.Error())
+		}
+		defer c.mux.Unlock()
+		return func() {
+			log.Infof("Published data [%v] to topic [%v]", d, c.DataTopic)
+		}
+	}
+	upstream := stream.New()
+	return func() {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Infof("Stopping data stream")
+				upstream.Wait()
+				return
+			default:
+				time.Sleep(c.publishInterval)
+				upstream.Go(pubTask)
+			}
+		}
+	}
+}
+
+func (c *Client) UpdateLocalState(payload []byte) {
+	s, err := gosl.Unmarshal(payload, &StateUpdate{})
+	if err != nil {
+		log.Errorf("Error unmarshalling state payload: %v", err)
+		return
+	}
+	log.Infof("Received new state: %v", s)
+
+	d, err := time.ParseDuration(s.ReportInterval)
+	if err != nil {
+		log.Warnf("Received invalid report interval duration: %v", s.ReportInterval)
+		return
+	}
+	c.mux.Lock()
+	c.publishInterval = d
+	c.mux.Unlock()
+}
+
+func (c *Client) handle() func(MQTT.Client, MQTT.Message) {
+	return func(clt MQTT.Client, msg MQTT.Message) {
+		id := c.opts.MqttOptions.ClientID
+		log.Infof("Received message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
+		switch msg.Topic() {
+		case UpdateStateTopic.Fmt(id):
+			log.Infof("Received state update message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
+			c.UpdateLocalState(msg.Payload())
+		default:
+			log.Infof("Received message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
+		}
+	}
+}
