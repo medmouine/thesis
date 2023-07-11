@@ -28,7 +28,7 @@ type SubTopic struct {
 type Client struct {
 	mqttClient  MQTT.Client
 	Subs        []SubTopic
-	DataTopics  []string
+	DataTopic   string
 	StateTopics []string
 	Status      ClientStatus
 	driver      interface{}
@@ -37,7 +37,7 @@ type Client struct {
 type ClientOptions struct {
 	*MQTT.ClientOptions
 	SubTopics   []string
-	DataTopics  []string
+	DataTopic   string
 	StateTopics []string
 }
 
@@ -53,7 +53,7 @@ func NewClient(opts *ClientOptions) (*Client, error) {
 	return &Client{
 		clt,
 		subs,
-		opts.DataTopics,
+		opts.DataTopic,
 		opts.StateTopics,
 		INIT,
 		nil,
@@ -83,10 +83,10 @@ func (c *Client) Init() error {
 		return err
 	}
 
-	pubStream := stream.New()
-	go func() {
-		pubStream.Go(c.Publish)
-	}()
+	//pubStream := stream.New()
+	//go func() {
+	//pubStream.Go()
+	//}()
 	return nil
 }
 
@@ -108,15 +108,12 @@ func (c *Client) conn() error {
 	return token.Error()
 }
 
-func (c *Client) Publish() stream.Callback {
-	time.Sleep(1 * time.Second)
+func (c *Client) Publish(topic string) stream.Callback {
 	return func() {
 		var errs error
-		for _, topic := range c.DataTopics {
-			token := c.mqttClient.Publish(topic, 0, false, c.driver)
-			token.Wait()
-			errs = multierror.Append(errs, token.Error())
-		}
+		token := c.mqttClient.Publish(topic, 0, false, c.driver)
+		token.Wait()
+		errs = multierror.Append(errs, token.Error())
 		fmt.Printf("publish error: %v", errs)
 	}
 }
