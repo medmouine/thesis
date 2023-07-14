@@ -22,9 +22,20 @@
 ## Command to run when starting the container.
 #ENTRYPOINT ["/apiserver"]
 
+
 FROM golang:latest
+
+ENV PROJECT_DIR=/go/src/mapper \
+    GO111MODULE=on \
+    CGO_ENABLED=0
+
 WORKDIR /go/src/mapper
 COPY . .
+
 RUN go mod download -x
 RUN go get github.com/githubnemo/CompileDaemon
-ENTRYPOINT CompileDaemon --build="go build main.go" --command="./main"
+RUN go install github.com/githubnemo/CompileDaemon
+
+EXPOSE 3000
+
+ENTRYPOINT CompileDaemon -build="go build -o ./build/mapper main.go " -command="./build/mapper"

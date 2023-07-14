@@ -7,16 +7,13 @@ export KO_DOCKER_REPO := env_var_or_default('KO_DOCKER_REPO', 'ko.local')
 export TARGET_DISK_PATH := "./" + TARGET
 export TARGET_MOD_PATH := ""
 
-sensor:
-    just ctx sensor
-
 mapper:
     just ctx mapper
 
 lintall *T=TARGET: lint sec
 
 sec *T=TARGET:
-     cd {{T}} && gosec -exclude=G401,G404,G501,G502,G505 ./...
+    cd {{T}} && gosec -exclude=G401,G404,G501,G502,G505 ./...
 
 #critic *T=TARGET:
 #    cd {{T}} && gocritic check -enableAll ./...
@@ -38,10 +35,10 @@ cbuild *T=TARGET: (lintall T)
     @ftag="{{ if t != "" { "-t " + t } else { "" } }}" && cd {{T}} && ko build $ftag .
 
 compose-up:
-    podman-compose -f deploy/docker-compose.yml -p local up
+    docker compose -f deploy/docker-compose.yml -p local up
 
 compose-down:
-    podman-compose -f deploy/docker-compose.yml -p local down
+    docker compose -f deploy/docker-compose.yml -p local down
 
 kind-up:
     KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --config config/local-cluster.yaml --name ${KIND_CLUSTER_NAME}
@@ -53,7 +50,6 @@ ip:
     podman inspect ${TARGET} --format {{{{.NetworkSettings.IPAddress}}
 
 @ctx target:
-    TARGET={{target}}
     echo "Set target to {{target}}"
     sed -i '' "s/JUST_TARGET=.*$/JUST_TARGET={{target}}/" "{{justfile_directory()}}/.env"
 

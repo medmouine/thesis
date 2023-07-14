@@ -1,28 +1,31 @@
 package main
 
 import (
+	_ "net/http/pprof"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/medmouine/device-mapper/cmd"
-	"github.com/medmouine/device-mapper/internal/client"
-	"github.com/medmouine/device-mapper/internal/config"
-	"github.com/medmouine/device-mapper/internal/router"
-	temperaturesensor "github.com/medmouine/device-mapper/pkg/sensor"
+	"github.com/medmouine/mapper/cmd"
+	"github.com/medmouine/mapper/internal/client"
+	"github.com/medmouine/mapper/internal/config"
+	"github.com/medmouine/mapper/internal/router"
+	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/mapper/pkg/device/temperature"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	cfg := config.NewConfig()
-	driver := temperaturesensor.NewTemperatureSimulator(cfg.Mqtt.ClientID, 0, 100)
-	api := setupAPI(cfg.Server, driver)
-	clt := client.NewClient(cfg.Mqtt.ToClientOptions(), driver)
+	d := temperature.NewTemperatureSimulator(cfg.Mqtt.ClientID, 0, 100)
+	api := setupAPI[temperature.Data](cfg.Server, d)
+	clt := client.NewClient[temperature.Data](d, cfg.Mqtt.ToClientOptions())
 
 	mapper := &cmd.Mapper{
-		Config:       cfg,
-		Client:       clt,
-		DeviceDriver: driver,
-		API:          api,
+		Config: cfg,
+		Client: clt,
+		Device: d,
+		API:    api,
 	}
 
 	// Run instance.
@@ -31,11 +34,11 @@ func main() {
 	}
 }
 
-func setupAPI(config *config.ServerConfig, driver *temperaturesensor.TemperatureSimulator) *chi.Mux {
+func setupAPI[T interface{}](config *config.ServerConfig, d device.Device[T]) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Timeout(config.ReadTimeout))
-	router.GetRoutes(r, driver)
+	router.GetRoutes(r, d)
 
 	return r
 }

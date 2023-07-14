@@ -4,14 +4,14 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/medmouine/device-mapper/internal/router/device"
-	"github.com/medmouine/device-mapper/internal/router/healthcheck"
-	temperaturesensor "github.com/medmouine/device-mapper/pkg/sensor"
+	"github.com/medmouine/mapper/internal/router/healthcheck"
+	"github.com/medmouine/mapper/internal/router/state"
+	"github.com/medmouine/mapper/pkg/device"
 )
 
 // GetRoutes function for getting routes.
-func GetRoutes(m *chi.Mux, d *temperaturesensor.TemperatureSimulator) {
+func GetRoutes[T interface{}](m *chi.Mux, d device.Device[T]) {
 	healthcheck.Routes(m) // health check routes
-	device.Routes(m, d)
+	state.Routes(m, d)
 	m.NotFound(http.NotFound) // not found routes
 }

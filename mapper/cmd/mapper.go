@@ -4,16 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/medmouine/device-mapper/internal/client"
-	"github.com/medmouine/device-mapper/internal/config"
-	sensor "github.com/medmouine/device-mapper/pkg/sensor"
+	"github.com/medmouine/mapper/internal/client"
+	"github.com/medmouine/mapper/internal/config"
+	"github.com/medmouine/mapper/pkg/device/temperature"
+	log "github.com/sirupsen/logrus"
 )
 
 type Mapper struct {
-	Config       *config.Config
-	Client       *client.Client
-	DeviceDriver sensor.Sensor
-	API          http.Handler
+	Config *config.Config
+	Client *client.Client[temperature.Data]
+	Device temperature.TemperatureDevice
+	API    http.Handler
 }
 
 // Run function to start server instance with config & router.
@@ -27,14 +28,16 @@ func (m *Mapper) Run() error {
 		return err
 	}
 
-	go m.Client.StreamData(ctx)
+	go m.Client.StreamData(ctx)()
 
+	log.Infof("Server listening on %s", server.Addr)
 	return server.ListenAndServe()
 }
 
 func getHTTPServer(c *config.Config, r http.Handler) *http.Server {
 	// Prepare server with CloudFlare recommendation timeouts config.
 	// See: https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/
+
 	server := &http.Server{
 		Handler:      r,
 		Addr:         c.Server.Addr,

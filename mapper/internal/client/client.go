@@ -2,28 +2,24 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hashicorp/go-multierror"
 	"github.com/koddr/gosl"
-	sensor "github.com/medmouine/device-mapper/pkg/sensor"
+	"github.com/medmouine/mapper/pkg/device"
 	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 	"github.com/sourcegraph/conc/stream"
 )
 
-type Client struct {
-	mqtt            MQTT.Client
-	Subs            []string
-	DataTopic       string
-	StateTopics     []string
-	Status          Status
-	driver          sensor.Sensor
-	opts            *Options
-	publishInterval time.Duration
-	mux             sync.Mutex
+type Client[T interface{}] struct {
+	mqtt    MQTT.Client
+	d       device.Device[T]
+	Options *Options
+	mux     sync.Mutex
 }
 
 type Options struct {
@@ -34,38 +30,23 @@ type Options struct {
 	PublishInterval time.Duration
 }
 
-func NewClient(opts *Options, driver sensor.Sensor) *Client {
+func NewClient[T interface{}](d device.Device[T], opts *Options) *Client[T] {
 	clt := MQTT.NewClient(opts.MqttOptions)
 
-	return &Client{
-		clt,
-		opts.SubTopics,
-		opts.DataTopic,
-		opts.StateTopics,
-		Init,
-		driver,
-		opts,
-		opts.PublishInterval,
-		sync.Mutex{},
+	return &Client[T]{
+		mqtt:    clt,
+		d:       d,
+		Options: opts,
 	}
 }
 
-func (c *Client) SetStatus(state Status) {
-	c.Status = state
-}
-
-// func handleError(i interface{}) {}
-
-func (c *Client) Connect() error {
-	c.SetStatus(Connecting)
+func (c *Client[T]) Connect() error {
 	if token := c.mqtt.Connect(); token.Wait() && token.Error() != nil {
 		log.Errorf("Error connecting to MQTT broker: %v", token.Error())
-		c.SetStatus(ConnError)
 		return token.Error()
 	}
 
-	log.Infof("Connected to MQTT brokers [%v]", c.opts.MqttOptions.Servers)
-	c.SetStatus(Connected)
+	log.Infof("Connected to MQTT brokers [%v]", c.Options.MqttOptions.Servers)
 
 	if err := c.Subscribe(); err != nil {
 		log.Errorf("Error subscribing to topics: %v", err)
@@ -74,9 +55,9 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-func (c *Client) Subscribe() error {
+func (c *Client[T]) Subscribe() error {
 	var errs error
-	lo.ForEach(lo.Union(c.Subs, c.StateTopics), func(topic string, i int) {
+	lo.ForEach(lo.Union(c.Options.SubTopics, c.Options.StateTopics), func(topic string, i int) {
 		if token := c.mqtt.Subscribe(topic, 0, c.handle()); token.Wait() && token.Error() != nil {
 			errs = multierror.Append(errs, token.Error())
 			return
@@ -86,20 +67,28 @@ func (c *Client) Subscribe() error {
 	return errs
 }
 
-func (c *Client) StreamData(ctx context.Context) func() {
+func (c *Client[T]) StreamData(ctx context.Context) func() {
+	t := c.Options.DataTopic
 	pubTask := func() stream.Callback {
 		c.mux.Lock()
-		d := c.driver.Read()
-		if token := c.mqtt.Publish(c.DataTopic, 0, false, d); token.Wait() && token.Error() != nil {
-			log.Errorf("Error publishing data: %v", token.Error())
+		d := c.d.Read()
+		c.mux.Unlock()
+		log.Infof("Publishing data [%v] to topic [%v]", d, t)
+		payload, err := gosl.Marshal(&d)
+		if err != nil {
+			return c.handlePublishError(fmt.Errorf("error during data marshal: %w", err), t, d)
 		}
-		defer c.mux.Unlock()
+		if token := c.mqtt.Publish(t, 0, false, payload); token.Wait() && token.Error() != nil {
+			return c.handlePublishError(token.Error(), t, string(payload))
+		}
 		return func() {
-			log.Infof("Published data [%v] to topic [%v]", d, c.DataTopic)
+			log.Infof("Successfully published data [%v] to topic [%v]", string(payload), t)
 		}
 	}
 	upstream := stream.New()
 	return func() {
+		log.Infof("Starting data stream on topic [%v]", t)
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -107,14 +96,14 @@ func (c *Client) StreamData(ctx context.Context) func() {
 				upstream.Wait()
 				return
 			default:
-				time.Sleep(c.publishInterval)
+				time.Sleep(c.Options.PublishInterval)
 				upstream.Go(pubTask)
 			}
 		}
 	}
 }
 
-func (c *Client) UpdateLocalState(payload []byte) {
+func (c *Client[T]) UpdateLocalState(payload []byte) {
 	s, err := gosl.Unmarshal(payload, &StateUpdate{})
 	if err != nil {
 		log.Errorf("Error unmarshalling state payload: %v", err)
@@ -128,13 +117,15 @@ func (c *Client) UpdateLocalState(payload []byte) {
 		return
 	}
 	c.mux.Lock()
-	c.publishInterval = d
+	opts := *c.Options
+	opts.PublishInterval = d
+	c.Options = &opts
 	c.mux.Unlock()
 }
 
-func (c *Client) handle() func(MQTT.Client, MQTT.Message) {
+func (c *Client[T]) handle() func(MQTT.Client, MQTT.Message) {
 	return func(clt MQTT.Client, msg MQTT.Message) {
-		id := c.opts.MqttOptions.ClientID
+		id := c.Options.MqttOptions.ClientID
 		log.Infof("Received message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
 		switch msg.Topic() {
 		case UpdateStateTopic.Fmt(id):
@@ -143,5 +134,11 @@ func (c *Client) handle() func(MQTT.Client, MQTT.Message) {
 		default:
 			log.Infof("Received message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
 		}
+	}
+}
+
+func (c *Client[T]) handlePublishError(err error, topic string, payload interface{}) func() {
+	return func() {
+		log.Errorf("Error publishing payload %v to topic [%s]: %v", err, topic, payload)
 	}
 }

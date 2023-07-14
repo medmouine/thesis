@@ -6,7 +6,7 @@ import (
 
 	"github.com/caarlos0/env/v9"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
-	"github.com/medmouine/device-mapper/internal/client"
+	"github.com/medmouine/mapper/internal/client"
 )
 
 type MqttConfig struct {

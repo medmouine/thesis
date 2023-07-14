@@ -1,23 +1,38 @@
 version: "3.9"
 
 services:
-  device-mapper:
-#    image: ko.local/device-mapper-71e749782cfc2a9c9a8ce13a556c6be6:v0.0.1
+  mapper:
+    #    image: ko.local/device-mapper-71e749782cfc2a9c9a8ce13a556c6be6:v0.0.1
     build:
-      dockerfile: Dockerfile
+      dockerfile: dev.Dockerfile
       context: ../mapper
     volumes:
-      - ../:/go/src/
+      - ../mapper:/go/src/mapper
     depends_on:
       - emqx1
     container_name: mapper
     restart: always
+    ports:
+      - "3000:3000"
     networks:
       emqx-bridge:
         aliases:
           - mapper1
-    env_file:
-      - .env.local
+    environment:
+      - "STAGE_STATUS=dev"
+      - "SERVER_HOST=0.0.0.0"
+      - "SERVER_PORT=3000"
+      - "SERVER_ADDR=0.0.0.0:3000"
+      - "SERVER_READ_TIMEOUT=5s"
+      - "SERVER_WRITE_TIMEOUT=10s"
+      - "SERVER_IDLE_TIMEOUT=120s"
+      - "MQTT_CLIENT_ID=mapper1"
+      - "MQTT_SUB_TOPICS=mapper1/+/state:mapper1/+/data"
+      - "MQTT_STATE_TOPICS=mapper1/+/state"
+      - "MQTT_DATA_TOPIC=mapper1/+/data"
+      - "MQTT_BROKER_URL=mqtt://emqx@node1.emqx.io:1883"
+      - "MQTT_PUBLISH_INTERVAL=2s"
+
 
   emqx1:
     image: emqx:5.1.0
@@ -45,3 +60,4 @@ services:
 networks:
   emqx-bridge:
     driver: bridge
+
