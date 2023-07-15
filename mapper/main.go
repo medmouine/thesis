@@ -17,9 +17,9 @@ import (
 
 func main() {
 	cfg := config.NewConfig()
-	d := temperature.NewTemperatureSimulator(cfg.Mqtt.ClientID, 0, 100)
-	api := setupAPI[temperature.Data](cfg.Server, d)
-	clt := client.NewClient[temperature.Data](d, cfg.Mqtt.ToClientOptions())
+	d := temperature.NewTemperatureSimulator(cfg.Mqtt.ClientID, cfg.Mqtt.PublishInterval, cfg.Mqtt.MinTemp, cfg.Mqtt.MaxTemp)
+	api := setupAPI[temperature.TemperatureData](cfg.Server, d)
+	clt := client.NewClient[temperature.TemperatureData](d, cfg.Mqtt.ToClientOptions())
 
 	mapper := &cmd.Mapper{
 		Config: cfg,

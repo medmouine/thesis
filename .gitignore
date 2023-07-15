@@ -1,5 +1,7 @@
 # A default .gitignore for Create Go App project.
 
+deploy/influxdb
+deploy/telegraf
 # macOS
 **/.DS_store
 .idea

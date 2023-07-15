@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/mapper/pkg/device/simulation"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,11 +22,6 @@ func getState[T interface{}](d device.Device[T]) func(w http.ResponseWriter, r *
 			}
 		}
 	}
-}
-
-type DataResponse struct {
-	Temperature float64 `json:"temperature"`
-	Humidity    float64 `json:"humidity"`
 }
 
 func getData[T interface{}](d device.Device[T]) func(w http.ResponseWriter, r *http.Request) {
@@ -46,15 +43,18 @@ func putConfig[T interface{}](d device.Device[T]) func(w http.ResponseWriter, r 
 	return func(w http.ResponseWriter, r *http.Request) {
 		sim := d.Simulator()
 		if sim == nil {
-			log.Errorf("Cannot set anomaly on device %s: no simulator", d.ID())
+			log.Errorf("no simulator for device [%s]", d.ID())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		a := r.URL.Query().Get("anomaly")
-		log.Infof("Setting anomaly to %v (current %s)", a, sim.Anomaly())
-		sim.IntroduceAnomaly(device.ParseAnomaly(a))
-		w.WriteHeader(http.StatusOK)
+		if a := r.URL.Query().Get("anomaly"); a != "" {
+			sim.IntroduceAnomaly(simulation.ParseAnomaly(a))
+		}
 
+		varsValues := getMultiQueryParams(r, []string{"gv", "sv", "dv", "nv"})
+		simulation.HandleSimConfigUpdate(sim, varsValues)
+
+		w.WriteHeader(http.StatusOK)
 		if body, err := d.GetStatePayload(); err != nil {
 			log.Errorf("Error marshaling response state: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -66,4 +66,14 @@ func putConfig[T interface{}](d device.Device[T]) func(w http.ResponseWriter, r 
 			}
 		}
 	}
+}
+
+func getMultiQueryParams(r *http.Request, k []string) map[string]string {
+	return lo.Associate(k, func(s string) (string, string) {
+		return s, getQueryParam(r, s)
+	})
+}
+
+func getQueryParam(r *http.Request, k string) string {
+	return r.URL.Query().Get(k)
 }

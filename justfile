@@ -35,7 +35,7 @@ cbuild *T=TARGET: (lintall T)
     @ftag="{{ if t != "" { "-t " + t } else { "" } }}" && cd {{T}} && ko build $ftag .
 
 compose-up:
-    docker compose -f deploy/docker-compose.yml -p local up
+    docker compose -f deploy/docker-compose.yml -p local up -d
 
 compose-down:
     docker compose -f deploy/docker-compose.yml -p local down
@@ -48,21 +48,3 @@ kind-down:
 
 ip:
     podman inspect ${TARGET} --format {{{{.NetworkSettings.IPAddress}}
-
-@ctx target:
-    echo "Set target to {{target}}"
-    sed -i '' "s/JUST_TARGET=.*$/JUST_TARGET={{target}}/" "{{justfile_directory()}}/.env"
-
-@_mod_path t +recipes:
-    just _target {{t}} && just _disk_path {{t}} && \
-    TARGET_MOD_PATH=$(DiskPath="./{{t}}" && go work edit -json | jq -r --arg dp "$DiskPath" '.Use[] | select(.DiskPath == $dp) | .ModPath') && \
-    echo "Module: $TARGET_MOD_PATH" && \
-    cd $TARGET && \
-    {{recipes}}
-
-
-@_disk_path t:
-    TARGET_DISK_PATH="./{{t}}" && echo "Disk Path: $TARGET_DISK_PATH"
-
-@_target t:
-    TARGET={{t}} && echo "Target: $TARGET"

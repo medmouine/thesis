@@ -8,6 +8,7 @@ import (
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/mapper/pkg/device/simulation"
 	"github.com/medmouine/mapper/pkg/device/temperature"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,13 +17,12 @@ import (
 func TestNewClient(t *testing.T) {
 	// Here we just test if the function creates a new client correctly.
 	opts := &Options{
-		MqttOptions:     MQTT.NewClientOptions(),
-		SubTopics:       []string{"topic1", "topic2"},
-		DataTopic:       "data",
-		StateTopics:     []string{"state"},
-		PublishInterval: 1 * time.Second,
+		MqttOptions: MQTT.NewClientOptions(),
+		SubTopics:   []string{"topic1", "topic2"},
+		DataTopic:   "data",
+		StateTopics: []string{"state"},
 	}
-	c := NewClient[temperature.Data](new(MockDevice), opts)
+	c := NewClient[temperature.TemperatureData](new(MockDevice), opts)
 
 	assert.NotNil(t, c)
 	assert.Equal(t, opts.DataTopic, c.Options.DataTopic)
@@ -40,13 +40,12 @@ func TestClient_Connect(t *testing.T) {
 	mockMQTT.On("Connect").Return(mockToken)
 	mockMQTT.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
 
-	c := NewClient[temperature.Data](mockDevice,
+	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
-			MqttOptions:     MQTT.NewClientOptions(),
-			SubTopics:       []string{"topic1", "topic2"},
-			DataTopic:       "data",
-			StateTopics:     []string{"state"},
-			PublishInterval: 1 * time.Second,
+			MqttOptions: MQTT.NewClientOptions(),
+			SubTopics:   []string{"topic1", "topic2"},
+			DataTopic:   "data",
+			StateTopics: []string{"state"},
 		})
 	c.mqtt = mockMQTT
 
@@ -62,13 +61,12 @@ func TestClient_ConnectFailure(t *testing.T) {
 	mockToken.On("Error").Return(errors.New("connection error"))
 	mockMQTT.On("Connect").Return(mockToken)
 
-	c := NewClient[temperature.Data](mockDevice,
+	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
-			MqttOptions:     MQTT.NewClientOptions(),
-			SubTopics:       []string{"topic1", "topic2"},
-			DataTopic:       "data",
-			StateTopics:     []string{"state"},
-			PublishInterval: 1 * time.Second,
+			MqttOptions: MQTT.NewClientOptions(),
+			SubTopics:   []string{"topic1", "topic2"},
+			DataTopic:   "data",
+			StateTopics: []string{"state"},
 		})
 	c.mqtt = mockMQTT
 
@@ -86,13 +84,12 @@ func TestClient_SubscribeFailure(t *testing.T) {
 	mockMQTT.On("Connect").Return(mockToken)
 	mockMQTT.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
 
-	c := NewClient[temperature.Data](mockDevice,
+	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
-			MqttOptions:     MQTT.NewClientOptions(),
-			SubTopics:       []string{"topic1", "topic2"},
-			DataTopic:       "data",
-			StateTopics:     []string{"state"},
-			PublishInterval: 1 * time.Second,
+			MqttOptions: MQTT.NewClientOptions(),
+			SubTopics:   []string{"topic1", "topic2"},
+			DataTopic:   "data",
+			StateTopics: []string{"state"},
 		})
 	c.mqtt = mockMQTT
 
@@ -107,15 +104,14 @@ func TestClient_StreamData(t *testing.T) {
 	mockToken.On("Wait").Return(true)
 	mockToken.On("Error").Return(nil)
 	mockMQTT.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
-	mockDevice.On("Read").Return(temperature.Data{Temperature: 100, Humidity: 50})
-
-	c := NewClient[temperature.Data](mockDevice,
+	mockDevice.On("Read").Return(temperature.TemperatureData{Temperature: 100, Humidity: 50})
+	mockDevice.On("PublishInterval").Return(4 * time.Millisecond)
+	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
-			MqttOptions:     MQTT.NewClientOptions(),
-			SubTopics:       []string{"topic1", "topic2"},
-			DataTopic:       "data",
-			StateTopics:     []string{"state"},
-			PublishInterval: 4 * time.Millisecond,
+			MqttOptions: MQTT.NewClientOptions(),
+			SubTopics:   []string{"topic1", "topic2"},
+			DataTopic:   "data",
+			StateTopics: []string{"state"},
 		})
 	c.mqtt = mockMQTT
 
@@ -132,12 +128,13 @@ func TestClient_StreamData(t *testing.T) {
 
 func TestUpdateLocalState(t *testing.T) {
 	mockDevice := new(MockDevice)
-	client := NewClient[temperature.Data](mockDevice, &Options{
-		MqttOptions:     MQTT.NewClientOptions(),
-		SubTopics:       []string{"topic1", "topic2"},
-		DataTopic:       "data",
-		StateTopics:     []string{"state"},
-		PublishInterval: 1 * time.Second,
+	mockDevice.On("PublishInterval").Return(time.Duration(1))
+	mockDevice.On("SetPublishInterval", mock.Anything).Return(nil)
+	client := NewClient[temperature.TemperatureData](mockDevice, &Options{
+		MqttOptions: MQTT.NewClientOptions(),
+		SubTopics:   []string{"topic1", "topic2"},
+		DataTopic:   "data",
+		StateTopics: []string{"state"},
 	})
 
 	// Define your payload here
@@ -147,18 +144,19 @@ func TestUpdateLocalState(t *testing.T) {
 	client.UpdateLocalState(payload)
 
 	// Assert the publishInterval has been updated correctly
-	assert.Equal(t, 5*time.Second, client.Options.PublishInterval)
+	mockDevice.AssertCalled(t, "SetPublishInterval", 5*time.Second)
 }
 
 func TestHandle(t *testing.T) {
 	mockDevice := new(MockDevice)
-	c := NewClient[temperature.Data](mockDevice,
+	mockDevice.On("PublishInterval").Return(time.Duration(1))
+	mockDevice.On("SetPublishInterval", mock.Anything).Return(nil)
+	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
-			MqttOptions:     MQTT.NewClientOptions(),
-			SubTopics:       []string{"topic1", "topic2"},
-			DataTopic:       "data",
-			StateTopics:     []string{"state"},
-			PublishInterval: 1 * time.Second,
+			MqttOptions: MQTT.NewClientOptions(),
+			SubTopics:   []string{"topic1", "topic2"},
+			DataTopic:   "data",
+			StateTopics: []string{"state"},
 		})
 	c.Options.MqttOptions.ClientID = "test_client"
 
@@ -177,8 +175,8 @@ func TestHandle(t *testing.T) {
 	handleFunc := c.handle()
 	handleFunc(c.mqtt, mqttMessage)
 
-	// Assert the publishInterval has been updated correctly
-	assert.Equal(t, 5*time.Second, c.Options.PublishInterval)
+	// Assert the publishInterval has been updated correctly'
+	mockDevice.AssertCalled(t, "SetPublishInterval", 5*time.Second)
 }
 
 // MockMQTT is a mock struct that satisfies the MQTT.Client interface
@@ -233,21 +231,30 @@ func (m *MockToken) Error() error {
 }
 
 type MockDevice struct {
-	device.Device[temperature.Data]
+	device.Device[temperature.TemperatureData]
 	mock.Mock
 }
 
-func (m *MockDevice) Read() temperature.Data {
-	args := m.Called()
-	return args.Get(0).(temperature.Data)
+func (m *MockDevice) SetPublishInterval(pi time.Duration) {
+	m.Called(pi)
 }
 
-func (m *MockDevice) Data() *temperature.Data {
+func (m *MockDevice) PublishInterval() time.Duration {
 	args := m.Called()
-	return args.Get(0).(*temperature.Data)
+	return args.Get(0).(time.Duration)
 }
 
-func (m *MockDevice) Simulator() device.Simulator[temperature.Data] {
+func (m *MockDevice) Read() temperature.TemperatureData {
 	args := m.Called()
-	return args.Get(0).(device.Simulator[temperature.Data])
+	return args.Get(0).(temperature.TemperatureData)
+}
+
+func (m *MockDevice) Data() *temperature.TemperatureData {
+	args := m.Called()
+	return args.Get(0).(*temperature.TemperatureData)
+}
+
+func (m *MockDevice) Simulator() simulation.Simulator[simulation.VarSimulationConfig] {
+	args := m.Called()
+	return args.Get(0).(simulation.Simulator[simulation.VarSimulationConfig])
 }

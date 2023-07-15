@@ -12,7 +12,7 @@ import (
 
 type Mapper struct {
 	Config *config.Config
-	Client *client.Client[temperature.Data]
+	Client *client.Client[temperature.TemperatureData]
 	Device temperature.TemperatureDevice
 	API    http.Handler
 }

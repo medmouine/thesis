@@ -23,11 +23,10 @@ type Client[T interface{}] struct {
 }
 
 type Options struct {
-	MqttOptions     *MQTT.ClientOptions
-	SubTopics       []string
-	DataTopic       string
-	StateTopics     []string
-	PublishInterval time.Duration
+	MqttOptions *MQTT.ClientOptions
+	SubTopics   []string
+	DataTopic   string
+	StateTopics []string
 }
 
 func NewClient[T interface{}](d device.Device[T], opts *Options) *Client[T] {
@@ -96,7 +95,7 @@ func (c *Client[T]) StreamData(ctx context.Context) func() {
 				upstream.Wait()
 				return
 			default:
-				time.Sleep(c.Options.PublishInterval)
+				time.Sleep(c.d.PublishInterval())
 				upstream.Go(pubTask)
 			}
 		}
@@ -116,11 +115,7 @@ func (c *Client[T]) UpdateLocalState(payload []byte) {
 		log.Warnf("Received invalid report interval duration: %v", s.ReportInterval)
 		return
 	}
-	c.mux.Lock()
-	opts := *c.Options
-	opts.PublishInterval = d
-	c.Options = &opts
-	c.mux.Unlock()
+	c.d.SetPublishInterval(d)
 }
 
 func (c *Client[T]) handle() func(MQTT.Client, MQTT.Message) {

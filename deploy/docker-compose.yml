@@ -27,10 +27,10 @@ services:
       - "SERVER_WRITE_TIMEOUT=10s"
       - "SERVER_IDLE_TIMEOUT=120s"
       - "MQTT_CLIENT_ID=mapper1"
-      - "MQTT_SUB_TOPICS=mapper1/+/state:mapper1/+/data"
-      - "MQTT_STATE_TOPICS=mapper1/+/state"
-      - "MQTT_DATA_TOPIC=mapper1/+/data"
-      - "MQTT_BROKER_URL=mqtt://emqx@node1.emqx.io:1883"
+      - "MQTT_SUB_TOPICS=device/mapper1/state:device/mapper1/temperature/data"
+      - "MQTT_STATE_TOPICS=device/mapper1/state"
+      - "MQTT_DATA_TOPIC=device/mapper1/temperature/data"
+      - "MQTT_BROKER_URL=tcp://emqx@node1.emqx.io:1883"
       - "MQTT_PUBLISH_INTERVAL=2s"
 
 
@@ -57,7 +57,46 @@ services:
       - "8883:8883"
       - "18083:18083"
 
+  influxdb:
+    image: influxdb:2.7.0
+    container_name: influxdb
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+#    environment:
+#      - "DOCKER_INFLUXDB_INIT_MODE=setup"
+#      - "DOCKER_INFLUXDB_INIT_USERNAME=admin"
+#      - "DOCKER_INFLUXDB_INIT_PASSWORD=influxdb_admin"
+#      - "DOCKER_INFLUXDB_INIT_ORG=medmouine"
+#      - "DOCKER_INFLUXDB_INIT_BUCKET=temperature-sensor"
+#      - "DOCKER_INFLUXDB_INIT_RETENTION=1w"
+    volumes:
+      - ./influxdb/db:/var/lib/influxdb2
+    networks:
+      emqx-bridge:
+        aliases:
+          - influxdb
+
+  telegraf:
+    networks:
+      emqx-bridge:
+        aliases:
+          - telegraf
+    image: telegraf
+    container_name: telegraf
+    restart: always
+    environment:
+      - "INFLUX_TOKEN=DabHPuzGFjVHjSLSKqRQOZ0DZ9Kbp8AI-2_YCq7vOrp0o1hTFGr7dgnETE1nV91iJQ8J_5QuZRK4YtjV0osSjg=="
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb
+    links:
+      - influxdb
+    ports:
+      - '8125:8125'
 networks:
   emqx-bridge:
     driver: bridge
-

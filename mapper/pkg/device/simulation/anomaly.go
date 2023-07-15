@@ -1,4 +1,6 @@
-package device
+package simulation
+
+import "strings"
 
 type Anomaly int
 
@@ -38,16 +40,16 @@ func ParseAnomaly(a interface{}) Anomaly {
 }
 
 func parseString(s string) Anomaly {
-	switch s {
-	case "None":
+	switch strings.ToLower(s) {
+	case "none":
 		return None
-	case "Spike":
+	case "spike":
 		return Spike
-	case "Drift":
+	case "drift":
 		return Drift
-	case "Noise":
+	case "noise":
 		return Noise
-	case "Flatline":
+	case "flatline":
 		return Flatline
 	default:
 		return None

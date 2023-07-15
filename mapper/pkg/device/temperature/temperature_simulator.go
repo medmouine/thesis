@@ -3,27 +3,22 @@ package temperature
 import (
 	"math/rand"
 	"sync"
+	"time"
 
-	"github.com/koddr/gosl"
-	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/mapper/pkg/device/simulation"
 )
 
-type StatePayload struct {
-	DeviceID string  `json:"device_id"`
-	MaxTemp  float64 `json:"max_temp"`
-	MinTemp  float64 `json:"min_temp"`
-	Anomaly  string  `json:"anomaly,omitempty"`
-}
-
 type TemperatureSimulator interface {
-	device.Simulator[Data]
+	simulation.Simulator[simulation.VarSimulationConfig]
 	TemperatureDevice
 }
 
-func NewTemperatureSimulator(id string, minTemp, maxTemp float64) TemperatureSimulator {
-	ts := &temperatureSimulator{
-		temperatureDevice: newBaseTemperatureDevice(id, minTemp, maxTemp),
-		BaseSimulator:     &device.BaseSimulator[Data]{},
+func NewTemperatureSimulator(id string, pi time.Duration, minTemp, maxTemp float64) TemperatureSimulator {
+	var ts = new(temperatureSimulator)
+	ts.temperatureDevice = newBaseTemperatureDevice(id, pi, minTemp, maxTemp)
+	ts.BaseSimulator = &simulation.BaseSimulator{
+		SimConfig:  simulation.DefaultVarSimConfig(),
+		Simulation: ts,
 	}
 	ts.Device = ts
 	return ts
@@ -31,63 +26,44 @@ func NewTemperatureSimulator(id string, minTemp, maxTemp float64) TemperatureSim
 
 type temperatureSimulator struct {
 	*temperatureDevice
-	*device.BaseSimulator[Data]
+	*simulation.BaseSimulator
 	mux sync.Mutex
 }
 
-func (ts *temperatureSimulator) GetStatePayload() ([]byte, error) {
-	s := &StatePayload{
-		DeviceID: ts.ID(),
-		MaxTemp:  ts.MaxTemp(),
-		MinTemp:  ts.MinTemp(),
-	}
-
-	if sim := ts.Simulator(); sim != nil {
-		s.Anomaly = sim.Anomaly().String()
-	}
-
-	return gosl.Marshal(s)
-}
-
-func (ts *temperatureSimulator) GetDataPayload() ([]byte, error) {
-	d := ts.Read()
-	p := &Data{
-		Temperature: d.Temperature,
-		Humidity:    d.Humidity,
-	}
-
-	return gosl.Marshal(p)
-}
-
-func (ts *temperatureSimulator) Read() Data {
+func (ts *temperatureSimulator) Read() TemperatureData {
 	ts.mux.Lock()
 	defer ts.mux.Unlock()
-	d := &Data{
-		Temperature: ts.Data().Temperature,
-		Humidity:    ts.Data().Humidity,
-	}
 	a := *ts.Anomaly()
-	if a == device.Flatline {
-		return ts.SetData(d)
-	}
-
-	change := (rand.Float64() - 0.5) * 3.0
-	switch {
-	case a == device.Spike:
-		change *= 10.0
-	case a == device.Drift:
-		change += 0.1
-	case a == device.Noise:
-		change *= 2.0
-	}
-
-	d.Temperature += change
-	d.Humidity += change
-	if d.Temperature < ts.MinTemp() {
-		d.Temperature = ts.minTemp
-	} else if d.Temperature > ts.MaxTemp() {
-		d.Temperature = ts.maxTemp
-	}
-
+	current := *ts.Data()
+	t := ts.computeMinMax(current.Temperature, ts.computeVar(a))
+	h := current.Humidity + ts.computeVar(a)
+	d := NewData(t, h)
 	return ts.SetData(d)
+}
+
+func (ts *temperatureSimulator) computeVar(a simulation.Anomaly) float64 {
+	c := ts.Config()
+	change := (rand.Float64() - 0.5) * c.GlobalVariance
+	switch {
+	default:
+		return change
+	case a == simulation.Flatline:
+		return 0
+	case a == simulation.Spike:
+		return change * c.SpikeVariance
+	case a == simulation.Drift:
+		return change + c.DriftVariance
+	case a == simulation.Noise:
+		return change * c.NoiseVariance
+	}
+}
+func (ts *temperatureSimulator) computeMinMax(t, c float64) float64 {
+	switch t2 := t + c; {
+	case t2 > ts.MaxTemp():
+		return ts.MaxTemp()
+	case t2 < ts.MinTemp():
+		return ts.MinTemp()
+	default:
+		return t2
+	}
 }

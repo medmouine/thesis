@@ -1,4 +1,4 @@
-package device
+package simulation
 
 import (
 	"testing"
