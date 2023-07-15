@@ -1,5 +1,6 @@
 # A default .gitignore for Create Go App project.
 
+_tmp
 deploy/influxdb
 deploy/telegraf
 # macOS
