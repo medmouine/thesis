@@ -1,0 +1,47 @@
+replicaCount: 1
+env:
+  - name: INFLUX_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: influxdb2-auth
+        key: admin-token
+resources:
+  limits:
+    memory: 128Mi
+    cpu: 100m
+
+nodeSelector:
+  tier: edge
+  dc: dc1
+
+config:
+  agent:
+    interval: "10s"
+    round_interval: true
+    metric_batch_size: 1000
+    metric_buffer_limit: 10000
+    collection_jitter: "0s"
+    flush_interval: "10s"
+    flush_jitter: "0s"
+    precision: ""
+    debug: false
+    quiet: false
+    logfile: ""
+    hostname: ""
+    omit_hostname: false
+  outputs:
+    - influxdb_v2:
+        urls: [ "http://influxdb2.edge1" ]
+        token: "$INFLUX_TOKEN"
+        organization: "influxdata"
+        bucket: "temperature-sensor"
+  inputs:
+    - mqtt_consumer:
+        servers: [ "tcp://emqx-listeners.edge1:1883" ]
+        topics: [ "device/+/temperature/data" ]
+        data_format: "json"
+        json_time_key: "timestamp"
+        json_time_format: "unix"
+
+service:
+  enabled: false

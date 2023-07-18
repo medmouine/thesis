@@ -1,7 +1,6 @@
 package temperature
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/koddr/gosl"
@@ -48,14 +47,12 @@ type temperatureDevice struct {
 	maxTemp float64
 }
 
-func newBaseTemperatureDevice(id string, pubInterval time.Duration, minTemp float64, maxTemp float64) *temperatureDevice {
-	t := minTemp + rand.Float64()*(maxTemp-minTemp)
-	h := 0.0 + rand.Float64()*(100.0-0.0)
-	data := NewData(t, h)
-	d := device.NewBaseDevice[TemperatureData](id, data, pubInterval)
-	return &temperatureDevice{
+func newBaseTemperatureDevice(id string, pubInterval time.Duration, minTemp float64, maxTemp float64, location ...string) *temperatureDevice {
+	d := device.NewBaseDevice[TemperatureData](id, pubInterval, location...)
+	td := &temperatureDevice{
 		BaseDevice: d,
 		minTemp:    minTemp,
 		maxTemp:    maxTemp,
 	}
+	return td
 }

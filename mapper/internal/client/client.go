@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,13 +68,14 @@ func (c *Client[T]) Subscribe() error {
 }
 
 func (c *Client[T]) StreamData(ctx context.Context) func() {
-	t := c.Options.DataTopic
+	var t = c.Options.DataTopic
+	t = strings.ReplaceAll(t, "+", c.d.ID())
 	pubTask := func() stream.Callback {
 		c.mux.Lock()
 		d := c.d.Read()
 		c.mux.Unlock()
-		log.Infof("Publishing data [%v] to topic [%v]", d, t)
 		payload, err := gosl.Marshal(&d)
+		log.Infof("Publishing data [%v] to topic [%v]", string(payload), t)
 		if err != nil {
 			return c.handlePublishError(fmt.Errorf("error during data marshal: %w", err), t, d)
 		}

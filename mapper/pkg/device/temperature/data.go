@@ -1,23 +1,19 @@
 package temperature
 
 import (
-	"time"
-
 	"github.com/medmouine/mapper/pkg/device"
 	"github.com/medmouine/mapper/pkg/device/simulation"
 )
 
 type TemperatureData struct {
-	*device.Timeseries
+	*device.BaseData
 	Temperature float64 `json:"temperature"`
 	Humidity    float64 `json:"humidity"`
 }
 
-func NewData(t, h float64) *TemperatureData {
+func NewData(t, h float64, d device.Device[TemperatureData]) *TemperatureData {
 	return &TemperatureData{
-		Timeseries: &device.Timeseries{
-			Epoch: time.Now().Unix(),
-		},
+		BaseData:    device.NewBaseData(d.ID(), d.Location()),
 		Temperature: t,
 		Humidity:    h,
 	}

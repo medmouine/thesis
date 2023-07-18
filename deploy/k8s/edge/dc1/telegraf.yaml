@@ -1,0 +1,175 @@
+---
+# Source: telegraf/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  namespace: edge1
+  name: telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+      app.kubernetes.io/instance: telegraf
+---
+# Source: telegraf/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: edge1
+  name: telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+---
+# Source: telegraf/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: edge1
+  name: telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+data:
+  telegraf.conf: |+
+
+    [agent]
+      collection_jitter = "0s"
+      debug = true
+      flush_interval = "10s"
+      flush_jitter = "0s"
+      interval = "10s"
+      logfile = ""
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      omit_hostname = true
+      precision = ""
+      quiet = false
+      round_interval = true
+    [[processors.enum]]
+       [[processors.enum.mapping]]
+        dest = "status_code"
+        field = "status"
+        [processors.enum.mapping.value_mappings]
+            critical = 3
+            healthy = 1
+            problem = 2
+    [[outputs.influxdb_v2]]
+      bucket = "iot-data"
+      organization = "dc1org"
+      token = "$INFLUX_TOKEN"
+      urls = [
+        "http://edge1-db"
+      ]
+    [[inputs.mqtt_consumer]]
+      data_format = "json"
+      json_time_format = "unix"
+      json_time_key = "timestamp"
+      servers = [
+        "tcp://emqx-listeners.edge1:1883"
+      ]
+      topics = [
+        "+/sensor/mapper/+/temperature/data"
+      ]
+      [[inputs.mqtt_consumer.topic_parsing]]
+        topic = "+/sensor/mapper/+/temperature/data"
+        measurement = "_/measurement/_/_/_/_"
+        tags = "location/_/_/mapper_id/_/_"
+    [[inputs.internal]]
+      collect_memstats = false
+---
+# Source: telegraf/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: telegraf
+  namespace: edge1
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+rules:
+  []
+---
+# Source: telegraf/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: edge1
+  name: telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+subjects:
+  - kind: ServiceAccount
+    name: telegraf
+    namespace: edge1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: telegraf
+---
+# Source: telegraf/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: edge1
+  name: telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.29
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: telegraf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+      app.kubernetes.io/instance: telegraf
+  template:
+    metadata:
+      namespace: edge1
+      labels:
+        app.kubernetes.io/name: telegraf
+        app.kubernetes.io/instance: telegraf
+      annotations:
+        checksum/config: ea5fb908a383e8f74ab78b29572cc21654c56e5364eef35e763fcc560df1f21b
+    spec:
+      serviceAccountName: telegraf
+      containers:
+      - name: telegraf
+        image: "telegraf:1.27-alpine"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: admin-token
+              name: edge1-db-auth
+        volumeMounts:
+        - name: config
+          mountPath: /etc/telegraf
+      nodeSelector:
+        dc: dc1
+        tier: edge
+      volumes:
+      - name: config
+        configMap:
+          name: telegraf

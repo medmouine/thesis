@@ -1,0 +1,24 @@
+#!/bin/bash -x
+
+script_dir=$(dirname "$0")
+# shellcheck source=./.env
+source "$script_dir/.env"
+
+vpc_id=$(doctl vpcs list -o json | jq -r '.[] | select(.name == "'"$VPC_NAME"'") | .id')
+
+if [ -z "$vpc_id" ]; then
+  doctl vpcs create --name "$VPC_NAME" --region "$VPC_REGION" -o json
+fi
+
+doctl kubernetes cluster create "$CLUSTER_NAME" \
+  --region "$VPC_REGION" \
+  --vpc-uuid "$vpc_id" \
+  --size "$CLOUD_WORKER_SIZE" \
+  --count "$CLOUD_WORKER_COUNT" \
+  --version "$K8S_VERSION" \
+  --tag "cloud" \
+  --wait
+
+cluster_id=$(doctl kubernetes cluster list -o json | jq -r '.[] | select(.name == "'"$CLUSTER_NAME"'") | .id')
+
+doctl kubernetes 1-click install "$cluster_id" --1-clicks ingress-nginx

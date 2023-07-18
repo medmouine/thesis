@@ -9,6 +9,7 @@ import (
 
 type Device[T interface{}] interface {
 	ID() string
+	Location() string
 	Data() *T
 	SetData(data *T) T
 	Read() T
@@ -22,9 +23,24 @@ type Device[T interface{}] interface {
 type BaseDevice[T interface{}] struct {
 	Device[T]
 	id              string
+	location        string
 	data            *T
 	publishInterval *time.Duration
 	mux             sync.Mutex
+}
+
+func NewBaseDevice[T interface{}](id string, pubInterval time.Duration, location ...string) *BaseDevice[T] {
+	var l = "unknown"
+	if len(location) > 0 && location[0] != "" {
+		l = location[0]
+	}
+
+	return &BaseDevice[T]{
+		id:              id,
+		location:        l,
+		publishInterval: &pubInterval,
+		mux:             sync.Mutex{},
+	}
 }
 
 func (s *BaseDevice[T]) SetPublishInterval(d time.Duration) {
@@ -38,13 +54,8 @@ func (s *BaseDevice[T]) PublishInterval() time.Duration {
 	defer s.mux.Unlock()
 	return *s.publishInterval
 }
-
-func NewBaseDevice[T interface{}](id string, data *T, pubInterval time.Duration) *BaseDevice[T] {
-	return &BaseDevice[T]{
-		id:              id,
-		data:            data,
-		publishInterval: &pubInterval,
-	}
+func (s *BaseDevice[T]) Location() string {
+	return s.location
 }
 
 func (s *BaseDevice[T]) ID() string {

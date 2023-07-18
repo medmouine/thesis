@@ -1,8 +1,9 @@
+---
+
 version: "3.9"
 
 services:
   mapper:
-    #    image: ko.local/device-mapper-71e749782cfc2a9c9a8ce13a556c6be6:v0.0.1
     build:
       dockerfile: dev.Dockerfile
       context: ../mapper
@@ -65,13 +66,13 @@ services:
     restart: unless-stopped
     ports:
       - "8086:8086"
-#    environment:
-#      - "DOCKER_INFLUXDB_INIT_MODE=setup"
-#      - "DOCKER_INFLUXDB_INIT_USERNAME=admin"
-#      - "DOCKER_INFLUXDB_INIT_PASSWORD=influxdb_admin"
-#      - "DOCKER_INFLUXDB_INIT_ORG=medmouine"
-#      - "DOCKER_INFLUXDB_INIT_BUCKET=temperature-sensor"
-#      - "DOCKER_INFLUXDB_INIT_RETENTION=1w"
+    #    environment:
+    #      - "DOCKER_INFLUXDB_INIT_MODE=setup"
+    #      - "DOCKER_INFLUXDB_INIT_USERNAME=admin"
+    #      - "DOCKER_INFLUXDB_INIT_PASSWORD=influxdb_admin"
+    #      - "DOCKER_INFLUXDB_INIT_ORG=medmouine"
+    #      - "DOCKER_INFLUXDB_INIT_BUCKET=temperature-sensor"
+    #      - "DOCKER_INFLUXDB_INIT_RETENTION=1w"
     volumes:
       - ./influxdb/db:/var/lib/influxdb2
     networks:

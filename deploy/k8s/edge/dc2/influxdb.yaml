@@ -1,0 +1,186 @@
+---
+# Source: influxdb2/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  namespace: edge2
+  name: influxdb2
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: influxdb2
+      app.kubernetes.io/instance: influxdb
+---
+# Source: influxdb2/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: edge2
+  name: influxdb2
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+---
+# Source: influxdb2/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: edge2
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+  name: influxdb2-auth
+data:
+  admin-token: "aW5mbHV4ZGJfdG9rZW4="   # influxdb_token
+  admin-password: "aW5mbHV4ZGJfcHc="    # influxdb_pw
+---
+# Source: influxdb2/templates/persistent-volume-claim.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: edge2
+  name: "influxdb2"
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+  annotations:
+    helm.sh/resource-policy: "keep"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: influxdb2/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: edge2
+  name: influxdb2
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8086
+  selector:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+---
+# Source: influxdb2/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: edge2
+  name: influxdb2
+  labels:
+    app.kubernetes.io/name: influxdb2
+    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/version: "2.3.0"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: influxdb2-2.1.1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: influxdb2
+      app.kubernetes.io/instance: influxdb
+  serviceName: "influxdb2"
+  template:
+    metadata:
+      namespace: edge2
+      labels:
+        app.kubernetes.io/name: influxdb2
+        app.kubernetes.io/instance: influxdb
+    spec:
+      nodeSelector:
+        tier: edge
+        dc: dc2   #  TODO
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: influxdb2
+      serviceAccountName: influxdb2
+      containers:
+        - name: influxdb2
+          image: "influxdb:2.3.0-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8086
+              protocol: TCP
+
+          env:
+            - name: DOCKER_INFLUXDB_INIT_MODE
+              value: setup
+            - name: DOCKER_INFLUXDB_INIT_USERNAME
+              value: admin
+            - name: DOCKER_INFLUXDB_INIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb2-auth
+                  key: admin-password
+            - name: DOCKER_INFLUXDB_INIT_ORG
+              value: influxdata
+            - name: DOCKER_INFLUXDB_INIT_BUCKET
+              value: temperature-sensor
+            - name: DOCKER_INFLUXDB_INIT_RETENTION
+              value: 0s
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb2-auth
+                  key: admin-token
+            - name: INFLUXD_BOLT_PATH
+              value: /var/lib/influxdb2/influxd.bolt
+            - name: INFLUXD_ENGINE_PATH
+              value: /var/lib/influxdb2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/influxdb2
+              subPath: ""
+          resources:
+            {}

@@ -106,11 +106,12 @@ func TestClient_StreamData(t *testing.T) {
 	mockMQTT.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
 	mockDevice.On("Read").Return(temperature.TemperatureData{Temperature: 100, Humidity: 50})
 	mockDevice.On("PublishInterval").Return(4 * time.Millisecond)
+	mockDevice.On("ID").Return("dev1")
 	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
 			MqttOptions: MQTT.NewClientOptions(),
 			SubTopics:   []string{"topic1", "topic2"},
-			DataTopic:   "data",
+			DataTopic:   "data/+/topic",
 			StateTopics: []string{"state"},
 		})
 	c.mqtt = mockMQTT
@@ -233,6 +234,11 @@ func (m *MockToken) Error() error {
 type MockDevice struct {
 	device.Device[temperature.TemperatureData]
 	mock.Mock
+}
+
+func (m *MockDevice) ID() string {
+	args := m.Called()
+	return args.Get(0).(string)
 }
 
 func (m *MockDevice) SetPublishInterval(pi time.Duration) {
