@@ -76,7 +76,7 @@ data:
       json_time_format = "unix"
       json_time_key = "timestamp"
       servers = [
-        "tcp://emqx-listeners.edge1:1883"
+        "tcp://edgebroker.edge1:1883"
       ]
       topics = [
         "+/sensor/mapper/+/temperature/data"

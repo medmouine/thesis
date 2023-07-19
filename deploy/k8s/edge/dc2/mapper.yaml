@@ -11,10 +11,10 @@ data:
   SERVER_READ_TIMEOUT: "5s"
   SERVER_WRITE_TIMEOUT: "10s"
   SERVER_IDLE_TIMEOUT: "120s"
-  MQTT_SUB_TOPICS: "dc2/sensor/mapper/state:dc2/sensor/mapper/temperature/data"
-  MQTT_STATE_TOPICS: "dc2/sensor/mapper/state"
-  MQTT_DATA_TOPIC: "dc2/sensor/mapper/temperature/data"
-  MQTT_BROKER_URL: "tcp://emqx-listeners.edge2:1883"
+  MQTT_SUB_TOPICS: "dc2/sensor/mapper/+/state:dc2/sensor/mapper/+/temperature/data"
+  MQTT_STATE_TOPICS: "dc2/sensor/mapper/+/state"
+  MQTT_DATA_TOPIC: "dc2/sensor/mapper/+/temperature/data"
+  MQTT_BROKER_URL: "mqtt://edgebroker.edge2:1883"
   MQTT_PUBLISH_INTERVAL: "2s"
 
 ---
@@ -85,6 +85,7 @@ spec:
   type: ClusterIP
   selector:
     app: tmapper
+    dc: dc2
   ports:
     - port: 3000
       targetPort: 8080

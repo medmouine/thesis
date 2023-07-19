@@ -1,0 +1,32 @@
+podLabels:
+  tier: edge
+  dc: dc2
+
+nameOverride: "edge2-db"
+fullnameOverride: "edge2-db"
+
+nodeSelector:
+  tier: edge
+  dc: dc2
+
+adminUser:
+  organization: "dc2org"
+  bucket: "iot-data"
+  user: "admin"
+  retention_policy: "0s"
+  password: "influx_pas"
+  token: "influx_token"
+persistence:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /var/lib/influxdb2
+  subPath: ""
+
+#service:
+#  type: ClusterIP
+#  port: 80
+#  targetPort: 8086
+#  annotations: { }
+#  labels: { }
+#  portName: http

@@ -12,7 +12,7 @@ resources:
 
 nodeSelector:
   tier: edge
-  dc: dc1
+  dc: dc2
 
 config:
   agent:
@@ -31,13 +31,13 @@ config:
     omit_hostname: false
   outputs:
     - influxdb_v2:
-        urls: [ "http://influxdb2.edge1" ]
+        urls: [ "http://influxdb2.edge2" ]
         token: "$INFLUX_TOKEN"
         organization: "influxdata"
         bucket: "temperature-sensor"
   inputs:
     - mqtt_consumer:
-        servers: [ "tcp://emqx-listeners.edge1:1883" ]
+        servers: [ "tcp://edgebroker.edge2:1883" ]
         topics: [ "device/+/temperature/data" ]
         data_format: "json"
         json_time_key: "timestamp"

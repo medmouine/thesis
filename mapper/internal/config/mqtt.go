@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v9"
+	"github.com/eclipse/paho.golang/autopaho"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/medmouine/mapper/internal/client"
 )
@@ -42,4 +43,8 @@ func (c *MqttConfig) ToClientOptions() *client.Options {
 	mqttOpts.MqttOptions.SetPingTimeout(1 * time.Second)
 
 	return mqttOpts
+}
+
+func (c *MqttConfig) ToV5Config() autopaho.ClientConfig {
+	return autopaho.ClientConfig{}
 }

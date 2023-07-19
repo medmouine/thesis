@@ -45,15 +45,14 @@ data:
 
     [agent]
       collection_jitter = "0s"
-      debug = false
+      debug = true
       flush_interval = "10s"
       flush_jitter = "0s"
-      hostname = "telegraf-mqtt"
       interval = "10s"
       logfile = ""
       metric_batch_size = 1000
       metric_buffer_limit = 10000
-      omit_hostname = false
+      omit_hostname = true
       precision = ""
       quiet = false
       round_interval = true
@@ -66,24 +65,25 @@ data:
             healthy = 1
             problem = 2
     [[outputs.influxdb_v2]]
-      bucket = "temperature-sensor"
-      organization = "influxdata"
+      bucket = "iot-data"
+      organization = "dc2org"
       token = "$INFLUX_TOKEN"
       urls = [
-        "http://influxdb2.edge2"
+        "http://edge2-db"
       ]
     [[inputs.mqtt_consumer]]
       data_format = "json"
       json_time_format = "unix"
       json_time_key = "timestamp"
       servers = [
-        "tcp://emqx-listeners.edge2:1883"
+        "tcp://edgebroker.edge2:1883"
       ]
       topics = [
         "+/sensor/mapper/+/temperature/data"
       ]
       [[inputs.mqtt_consumer.topic_parsing]]
         topic = "+/sensor/mapper/+/temperature/data"
+        measurement = "_/measurement/_/_/_/_"
         tags = "location/_/_/mapper_id/_/_"
     [[inputs.internal]]
       collect_memstats = false
@@ -150,26 +150,26 @@ spec:
     spec:
       serviceAccountName: telegraf
       containers:
-        - name: telegraf
-          image: "telegraf:1.27-alpine"
-          imagePullPolicy: "IfNotPresent"
-          resources:
-            limits:
-              cpu: 100m
-              memory: 128Mi
-          env:
-            - name: INFLUX_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  key: admin-token
-                  name: influxdb2-auth
-          volumeMounts:
-            - name: config
-              mountPath: /etc/telegraf
+      - name: telegraf
+        image: "telegraf:1.27-alpine"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: admin-token
+              name: edge2-db-auth
+        volumeMounts:
+        - name: config
+          mountPath: /etc/telegraf
       nodeSelector:
         dc: dc2
         tier: edge
       volumes:
-        - name: config
-          configMap:
-            name: telegraf
+      - name: config
+        configMap:
+          name: telegraf

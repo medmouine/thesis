@@ -121,11 +121,13 @@ func (c *Client[T]) UpdateLocalState(payload []byte) {
 }
 
 func (c *Client[T]) handle() func(MQTT.Client, MQTT.Message) {
+	var t = c.Options.StateTopics[0]
+	t = strings.ReplaceAll(t, "+", c.d.ID())
+
 	return func(clt MQTT.Client, msg MQTT.Message) {
-		id := c.Options.MqttOptions.ClientID
 		log.Infof("Received message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
 		switch msg.Topic() {
-		case UpdateStateTopic.Fmt(id):
+		case t:
 			log.Infof("Received state update message [%v] on topic [%v]", string(msg.Payload()), msg.Topic())
 			c.UpdateLocalState(msg.Payload())
 		default:

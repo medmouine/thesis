@@ -3,11 +3,10 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: edge2
-  name: influxdb2
+  name: edge2-db
   labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
     app.kubernetes.io/version: "2.3.0"
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
@@ -15,18 +14,17 @@ spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: influxdb2
-      app.kubernetes.io/instance: influxdb
+      app.kubernetes.io/name: edge2-db
+      app.kubernetes.io/instance: influxdb-cd1
 ---
 # Source: influxdb2/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: edge2
-  name: influxdb2
+  name: edge2-db
   labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
     app.kubernetes.io/version: "2.3.0"
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
@@ -35,48 +33,25 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
-  namespace: edge2
   labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
     app.kubernetes.io/version: "2.3.0"
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
-  name: influxdb2-auth
+  name: edge2-db-auth
 data:
-  admin-token: "aW5mbHV4ZGJfdG9rZW4="   # influxdb_token
-  admin-password: "aW5mbHV4ZGJfcHc="    # influxdb_pw
----
-# Source: influxdb2/templates/persistent-volume-claim.yaml
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  namespace: edge2
-  name: "influxdb2"
-  labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
-    app.kubernetes.io/version: "2.3.0"
-    app.kubernetes.io/managed-by: Helm
-    helm.sh/chart: influxdb2-2.1.1
-  annotations:
-    helm.sh/resource-policy: "keep"
-spec:
-  accessModes:
-    - "ReadWriteOnce"
-  resources:
-    requests:
-      storage: "8Gi"
+  admin-token: "aW5mbHV4X3Rva2Vu"
+  admin-password: "aW5mbHV4X3Bhcw=="
 ---
 # Source: influxdb2/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: edge2
-  name: influxdb2
+  name: edge2-db
   labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
     app.kubernetes.io/version: "2.3.0"
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
@@ -88,18 +63,17 @@ spec:
       protocol: TCP
       targetPort: 8086
   selector:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
 ---
 # Source: influxdb2/templates/statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  namespace: edge2
-  name: influxdb2
+  name: edge2-db
   labels:
-    app.kubernetes.io/name: influxdb2
-    app.kubernetes.io/instance: influxdb
+    app.kubernetes.io/name: edge2-db
+    app.kubernetes.io/instance: influxdb-cd1
     app.kubernetes.io/version: "2.3.0"
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
@@ -107,24 +81,21 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: influxdb2
-      app.kubernetes.io/instance: influxdb
-  serviceName: "influxdb2"
+      app.kubernetes.io/name: edge2-db
+      app.kubernetes.io/instance: influxdb-cd1
+  serviceName: "edge2-db"
   template:
     metadata:
-      namespace: edge2
       labels:
-        app.kubernetes.io/name: influxdb2
-        app.kubernetes.io/instance: influxdb
-    spec:
-      nodeSelector:
+        app.kubernetes.io/name: edge2-db
+        app.kubernetes.io/instance: influxdb-cd1
+        dc: dc2
         tier: edge
-        dc: dc2   #  TODO
+    spec:
       volumes:
         - name: data
-          persistentVolumeClaim:
-            claimName: influxdb2
-      serviceAccountName: influxdb2
+          emptyDir: {}
+      serviceAccountName: edge2-db
       containers:
         - name: influxdb2
           image: "influxdb:2.3.0-alpine"
@@ -133,30 +104,39 @@ spec:
             - name: http
               containerPort: 8086
               protocol: TCP
-
           env:
+            # Automated setup will not run if an existing boltdb file is found at the configured path.
+            # This behavior allows for the InfluxDB container to reboot post-setup without encountering "DB is already set up" errors.
             - name: DOCKER_INFLUXDB_INIT_MODE
               value: setup
+            # The username to set for the system's initial super-user (Required).
             - name: DOCKER_INFLUXDB_INIT_USERNAME
               value: admin
+            # The password to set for the system's inital super-user (Required).
             - name: DOCKER_INFLUXDB_INIT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: influxdb2-auth
+                  name: edge2-db-auth
                   key: admin-password
+            # The name to set for the system's initial organization (Required).
             - name: DOCKER_INFLUXDB_INIT_ORG
-              value: influxdata
+              value: dc2org
+            # The name to set for the system's initial bucket (Required).
             - name: DOCKER_INFLUXDB_INIT_BUCKET
-              value: temperature-sensor
+              value: iot-data
+            # The duration the system's initial bucket should retain data. If not set, the initial bucket will retain data forever.
             - name: DOCKER_INFLUXDB_INIT_RETENTION
               value: 0s
+            # The authentication token to associate with the system's initial super-user. If not set, a token will be auto-generated by the system.
             - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: influxdb2-auth
+                  name: edge2-db-auth
                   key: admin-token
+            # Path to the BoltDB database.
             - name: INFLUXD_BOLT_PATH
               value: /var/lib/influxdb2/influxd.bolt
+            # Path to persistent storage engine files where InfluxDB stores all Time-Structure Merge Tree (TSM) data on disk.
             - name: INFLUXD_ENGINE_PATH
               value: /var/lib/influxdb2
           livenessProbe:
@@ -179,8 +159,11 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           volumeMounts:
-            - name: data
-              mountPath: /var/lib/influxdb2
-              subPath: ""
+          - name: data
+            mountPath: /var/lib/influxdb2
+            subPath:
           resources:
             {}
+      nodeSelector:
+        dc: dc2
+        tier: edge

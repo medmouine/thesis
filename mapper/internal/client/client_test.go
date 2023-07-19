@@ -39,6 +39,7 @@ func TestClient_Connect(t *testing.T) {
 	mockToken.On("Error").Return(nil)
 	mockMQTT.On("Connect").Return(mockToken)
 	mockMQTT.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
+	mockDevice.On("ID").Return("device1")
 
 	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
@@ -83,6 +84,7 @@ func TestClient_SubscribeFailure(t *testing.T) {
 	mockToken.On("Error").Return(errors.New("subscribe error")) // For Subscribe()
 	mockMQTT.On("Connect").Return(mockToken)
 	mockMQTT.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(mockToken)
+	mockDevice.On("ID").Return("device1")
 
 	c := NewClient[temperature.TemperatureData](mockDevice,
 		&Options{
@@ -169,14 +171,15 @@ func TestHandle(t *testing.T) {
 	payload := []byte(`{"report_interval": "5s"}`)
 
 	// Assume MQTT message topic is the id
-	mqttMessage.On("Topic").Return(UpdateStateTopic.Fmt("test_client"))
+	mqttMessage.On("Topic").Return("state")
 	mqttMessage.On("Payload").Return(payload)
+	mockDevice.On("ID").Return("device1")
 
 	// Call the function
 	handleFunc := c.handle()
 	handleFunc(c.mqtt, mqttMessage)
 
-	// Assert the publishInterval has been updated correctly'
+	// Assert the publishInterval has been updated correctly
 	mockDevice.AssertCalled(t, "SetPublishInterval", 5*time.Second)
 }
 

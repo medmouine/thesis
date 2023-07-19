@@ -14,7 +14,7 @@ data:
   MQTT_SUB_TOPICS: "dc1/sensor/mapper/+/state:dc1/sensor/mapper/+/temperature/data"
   MQTT_STATE_TOPICS: "dc1/sensor/mapper/+/state"
   MQTT_DATA_TOPIC: "dc1/sensor/mapper/+/temperature/data"
-  MQTT_BROKER_URL: "tcp://emqx-listeners.edge1:1883"
+  MQTT_BROKER_URL: "mqtt://edgebroker.edge1:1883"
   MQTT_PUBLISH_INTERVAL: "2s"
 
 ---
@@ -85,6 +85,7 @@ spec:
   type: ClusterIP
   selector:
     app: tmapper
+    dc: dc1
   ports:
     - port: 3000
       targetPort: 8080
