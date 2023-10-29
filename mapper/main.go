@@ -4,12 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/medmouine/mapper/cmd"
-	"github.com/medmouine/mapper/internal/client"
-	"github.com/medmouine/mapper/internal/config"
-	"github.com/medmouine/mapper/internal/router"
-	"github.com/medmouine/mapper/pkg/device"
-	"github.com/medmouine/mapper/pkg/device/temperature"
+	"github.com/medmouine/thesis/mapper/cmd"
+	"github.com/medmouine/thesis/mapper/internal/client"
+	"github.com/medmouine/thesis/mapper/internal/config"
+	"github.com/medmouine/thesis/mapper/internal/router"
+	"github.com/medmouine/thesis/mapper/pkg/device"
+	"github.com/medmouine/thesis/mapper/pkg/device/temperature"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -52,7 +52,7 @@ spec:
             requests:
               memory: "64Mi"
               cpu: "125m"
-          image: medmouine/mapper:latest
+          image: medmouine/mapper:v2.0.1
           ports:
             - containerPort: 3000
           env:

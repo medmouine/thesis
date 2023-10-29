@@ -1,0 +1,9 @@
+#!/usr/bin/env just --justfile
+
+set fallback
+
+synth:
+  cdk8s synth
+
+deploy:
+  kubectl apply -f dist/

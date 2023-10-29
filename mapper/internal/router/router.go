@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/medmouine/mapper/internal/router/healthcheck"
-	"github.com/medmouine/mapper/internal/router/state"
-	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/thesis/mapper/internal/router/healthcheck"
+	"github.com/medmouine/thesis/mapper/internal/router/state"
+	"github.com/medmouine/thesis/mapper/pkg/device"
 )
 
 // GetRoutes function for getting routes.

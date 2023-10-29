@@ -1,5 +1,6 @@
 # A default .gitignore for Create Go App project.
 
+
 _tmp
 deploy/influxdb
 deploy/telegraf
@@ -23,3 +24,4 @@ hosts.ini
 go.work.sum
 pkg/sumdb
 pkg/mod
+.vscode/

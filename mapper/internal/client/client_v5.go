@@ -1,26 +1,26 @@
 package client
 
 //
-//import (
+// import (
 
-//)
+// )
 //
-//type ClientV5[T interface{}] struct {
+// type ClientV5[T interface{}] struct {
 //	cm        *autopaho.ConnectionManager
 //	d         device.Device[T]
 //	SubTopics []string
 //	DataTopic string
 //	mux       sync.Mutex
-//}
+// }
 //
-//type OptionsV5 struct {
+// type OptionsV5 struct {
 //	MQTTOptions config.MqttConfig
 //	SubTopics   []string
 //	DataTopic   string
 //	StateTopics []string
-//}
+// }
 //
-//func NewConnectionV5[T interface{}](ctx context.Context, d device.Device[T], opts config.MqttConfig) (*ClientV5[T], error) {
+// func NewConnectionV5[T interface{}](ctx context.Context, d device.Device[T], opts config.MqttConfig) (*ClientV5[T], error) {
 //	cm, err := autopaho.NewConnection(ctx, opts.ToV5Config())
 //	c := &ClientV5[T]{
 //		cm:        cm,
@@ -34,4 +34,4 @@ package client
 //		},
 //	})
 //	return c, err
-//}
+// }

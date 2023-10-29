@@ -56,7 +56,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     helm.sh/chart: influxdb2-2.1.1
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: http
       port: 80
@@ -160,7 +160,7 @@ spec:
           volumeMounts:
           - name: data
             mountPath: /var/lib/influxdb2
-            subPath: 
+            subPath:
           resources:
             {}
       nodeSelector:

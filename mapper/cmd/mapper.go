@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/medmouine/mapper/internal/client"
-	"github.com/medmouine/mapper/internal/config"
-	"github.com/medmouine/mapper/pkg/device/temperature"
+	"github.com/medmouine/thesis/mapper/internal/client"
+	"github.com/medmouine/thesis/mapper/internal/config"
+	"github.com/medmouine/thesis/mapper/pkg/device/temperature"
 	log "github.com/sirupsen/logrus"
 )
 

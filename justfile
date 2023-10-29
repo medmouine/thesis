@@ -1,4 +1,6 @@
-set dotenv-load
+#!/usr/bin/env just --unstable --justfile
+set shell := ["zsh", "-cu"]
+set dotenv-load := true
 export WORKSPACE_ROOT := / justfile_directory()
 export TARGET := env_var_or_default('JUST_TARGET', 'mapper')
 
@@ -48,7 +50,7 @@ kind-down:
     kind delete clusters $CLUSTER_NAME
 
 cloud-up:
-    deploy/cloud-infra/doctl-up.sh
+    deploy/cloud-infra/doctl_up
 
 cloud-down:
-    deploy/cloud-infra/doctl-down.sh
+    deploy/cloud-infra/doctl_down

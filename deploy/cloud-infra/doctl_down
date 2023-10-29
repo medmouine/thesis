@@ -4,26 +4,4 @@ script_dir=$(dirname "$0")
 # shellcheck source=./.env
 source "$script_dir/.env"
 
-cluster_id=$(doctl kubernetes cluster list -o json | jq -r '.[] | select(.name == "'"$CLUSTER_NAME"'") | .id')
-if doctl kubernetes cluster rm "$cluster_id" --force ; then
-  echo "Cluster $CLUSTER_NAME deleted"
-else
-  echo "Cluster $CLUSTER_NAME not deleted"
-fi
-
-lbs=$(doctl compute load-balancer list -o json | jq -r '.[].id')
-for lb in $lbs; do
-  if doctl compute load-balancer delete "$lb" --force ; then
-    echo "Load balancer $lb deleted"
-  else
-    echo "Load balancer $lb not deleted"
-  fi
-done
-
-vpc_id=$(doctl vpcs list -o json | jq -r '.[] | select(.name == "'"$VPC_NAME"'") | .id')
-
-if doctl vpcs rm "$vpc_id" --force ; then
-  echo "VPC $VPC_NAME deleted"
-else
-  echo "VPC $VPC_NAME not deleted"
-fi
+doctl compute droplet delete -f edge1-worker-1 edge1-worker-2 edge2-worker-1 edge2-worker-2 edge1-worker-1 cloud-worker-1 cloud-worker-2 cloud-control-plane

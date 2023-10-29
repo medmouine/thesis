@@ -42,14 +42,13 @@ metadata:
     app.kubernetes.io/instance: telegraf
 data:
   telegraf.conf: |+
-
     [agent]
       collection_jitter = "0s"
       debug = true
       flush_interval = "10s"
       flush_jitter = "0s"
       interval = "10s"
-      logfile = ""
+      logfile = ''
       metric_batch_size = 1000
       metric_buffer_limit = 10000
       omit_hostname = true

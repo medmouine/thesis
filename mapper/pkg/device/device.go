@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/medmouine/mapper/pkg/device/simulation"
+	"github.com/medmouine/thesis/mapper/pkg/device/simulation"
 )
 
 type Device[T interface{}] interface {

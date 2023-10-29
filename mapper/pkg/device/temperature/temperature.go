@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/koddr/gosl"
-	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/thesis/mapper/pkg/device"
 )
 
 type TemperatureDevice interface {

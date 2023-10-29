@@ -1,0 +1,4 @@
+language: go
+app: go mod download && go mod tidy && go run .
+imports:
+  - k8s@1.24.0

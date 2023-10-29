@@ -2,7 +2,7 @@ package state
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/medmouine/mapper/pkg/device"
+	"github.com/medmouine/thesis/mapper/pkg/device"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/medmouine/mapper/pkg/device/simulation"
+	"github.com/medmouine/thesis/mapper/pkg/device/simulation"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,16 +86,16 @@ func TestGetSimulator(t *testing.T) {
 }
 
 //
-//func TestNewTemperatureSensor(t *testing.T) {
+// func TestNewTemperatureSensor(t *testing.T) {
 //	baseDevice := newBaseTemperatureDevice("id", -10, 50)
 //
 //	assert.Equal(t, "id", baseDevice.ID)
 //	assert.Equal(t, -10.0, baseDevice.MinTemp)
 //	assert.Equal(t, 50.0, baseDevice.maxTemp)
 //	assert.Equal(t, 20.0, baseDevice.TemperatureData)
-//}
+// }
 //
-//func TestRead(t *testing.T) {
+// func TestRead(t *testing.T) {
 //	baseDevice := newTemperatureSensor("Id", -10, 50, 20)
 //
 //	// The Read() method should panic with "not implemented" message
@@ -103,4 +103,4 @@ func TestGetSimulator(t *testing.T) {
 //
 //	// or you can use require instead of assert to stop the test if it fails
 //	require.PanicsWithValue(t, "not implemented", func() { baseDevice.Read() }, "The code did not panic")
-//}
+// }

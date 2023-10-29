@@ -3,8 +3,8 @@ package state
 import (
 	"net/http"
 
-	"github.com/medmouine/mapper/pkg/device"
-	"github.com/medmouine/mapper/pkg/device/simulation"
+	"github.com/medmouine/thesis/mapper/pkg/device"
+	"github.com/medmouine/thesis/mapper/pkg/device/simulation"
 	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )

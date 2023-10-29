@@ -4,21 +4,85 @@ script_dir=$(dirname "$0")
 # shellcheck source=./.env
 source "$script_dir/.env"
 
-vpc_id=$(doctl vpcs list -o json | jq -r '.[] | select(.name == "'"$VPC_NAME"'") | .id')
+doctl compute droplet create \
+    --image ubuntu-20-04-x64 \
+    --size s-4vcpu-8gb-intel \
+    --region nyc1 \
+    --vpc-uuid 7eb02146-2043-4c14-b8b1-3b710d0844a2 \
+    --enable-monitoring \
+    --tag-names 'cloud,control-plane,ny,vpc1' \
+    --ssh-keys "38866586" \
+    cloud-control-plane
 
-if [ -z "$vpc_id" ]; then
-  doctl vpcs create --name "$VPC_NAME" --region "$VPC_REGION" -o json
-fi
+for i in {1..2}; do
+  doctl compute droplet create \
+    --image ubuntu-20-04-x64 \
+    --size s-4vcpu-8gb-intel \
+    --region nyc1 \
+    --vpc-uuid 7eb02146-2043-4c14-b8b1-3b710d0844a2 \
+    --enable-monitoring \
+    --tag-names 'cloud,worker,ny' \
+    --ssh-keys "38866586" \
+    cloud-worker-"$i"
 
-doctl kubernetes cluster create "$CLUSTER_NAME" \
-  --region "$VPC_REGION" \
-  --vpc-uuid "$vpc_id" \
-  --size "$CLOUD_WORKER_SIZE" \
-  --count "$CLOUD_WORKER_COUNT" \
-  --version "$K8S_VERSION" \
-  --tag "cloud" \
-  --wait
+  doctl compute droplet create \
+    --image ubuntu-20-04-x64 \
+    --size s-2vcpu-4gb \
+    --region tor1 \
+    --vpc-uuid 581ea18d-0990-400b-be39-603adc7b0913 \
+    --enable-monitoring \
+    --tag-names 'edge,worker,edge1,tor1' \
+    --ssh-keys "38866586" \
+    edge1-worker-"$i"
 
-cluster_id=$(doctl kubernetes cluster list -o json | jq -r '.[] | select(.name == "'"$CLUSTER_NAME"'") | .id')
+  doctl compute droplet create \
+    --image ubuntu-20-04-x64 \
+    --size s-2vcpu-4gb \
+    --region sfo3 \
+    --vpc-uuid 3c65d977-5483-446e-8141-dcd074d1de88 \
+    --enable-monitoring \
+    --tag-names 'worker,edge2,edge,sfo3' \
+    --ssh-keys "38866586" \
+    edge2-worker-"$i"
+done
 
-doctl kubernetes 1-click install "$cluster_id" --1-clicks ingress-nginx
+sleep 35
+
+K3S_TOKEN=""
+
+while [[ -z $K3S_TOKEN ]]; do
+  CONTROL_PLANE_IP=$(doctl compute droplet get cloud-control-plane --format PublicIPv4 --no-header)
+  ssh -o StrictHostKeyChecking=no root@"$CONTROL_PLANE_IP" 'ufw disable && curl -sfL https://get.k3s.io | sh -'
+
+
+  K3S_TOKEN=$(ssh -o StrictHostKeyChecking=no root@"$CONTROL_PLANE_IP" 'cat /var/lib/rancher/k3s/server/node-token')
+  sleep 5
+done
+
+for i in {1..2}; do
+  URL=$(doctl compute droplet get cloud-worker-"$i" --format PublicIPv4 --no-header)
+  ssh -o StrictHostKeyChecking=no root@"$URL" "ufw disable && curl -sfL https://get.k3s.io | K3S_URL=https://$CONTROL_PLANE_IP:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=cloud"
+
+  URL=$(doctl compute droplet get edge1-worker-"$i" --format PublicIPv4 --no-header)
+  ssh -o StrictHostKeyChecking=no root@"$URL" "ufw disable && curl -sfL https://get.k3s.io | K3S_URL=https://$CONTROL_PLANE_IP:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=edge --node-label dc=dc1"
+
+  URL=$(doctl compute droplet get edge2-worker-"$i" --format PublicIPv4 --no-header)
+  ssh -o StrictHostKeyChecking=no root@"$URL" "ufw disable && curl -sfL https://get.k3s.io | K3S_URL=https://$CONTROL_PLANE_IP:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=edge --node-label dc=dc2"
+done
+
+scp -o StrictHostKeyChecking=no root@"$CONTROL_PLANE_IP":/etc/rancher/k3s/k3s.yaml ~/.kube/k3s.yaml
+sed -i ".bck" "s/127.0.0.1/$CONTROL_PLANE_IP/g" ~/.kube/k3s.yaml
+
+# ufw disable && curl -sfL https://get.k3s.io | sh -
+# cat /var/lib/rancher/k3s/server/node-token
+
+# ufw disable
+# K3S_TOKEN=""
+# URL=""
+# curl -sfL https://get.k3s.io | K3S_URL=https://$URL:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=cloud
+# curl -sfL https://get.k3s.io | K3S_URL=https://$URL:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=edge dc=dc1
+# curl -sfL https://get.k3s.io | K3S_URL=https://$URL:6443 K3S_TOKEN=$K3S_TOKEN sh -s - --node-label tier=edge dc=dc2
+
+# cat /etc/rancher/k3s/k3s.yaml
+
+# switch --kubeconfig-path  ~/.kube/k3s.yaml
